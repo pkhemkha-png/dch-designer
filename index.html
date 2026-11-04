@@ -99,7 +99,7 @@ textarea.dump{width:100%;height:160px;font-family:var(--f-mono);font-size:11px;b
 }
 </style></head><body>
 <div class="top">
-  <div class="brand"><b>DCH Designer</b><span>ออกแบบ Direct Contact Heater · คำนวณ · แบบสร้าง · น้ำหนัก · <b style="font-size:12px">v2.0 (2026-11-04) juice/syrup</b></span></div>
+  <div class="brand"><b>DCH Designer</b><span>ออกแบบ Direct Contact Heater · คำนวณ · แบบสร้าง · น้ำหนัก · <b style="font-size:12px">v2.1 (2026-11-04) juice/syrup/carbonate liquor</b></span></div>
   <div class="sp"></div>
   <button class="btn" id="bSave" type="button">บันทึกโปรเจกต์ (.json)</button>
   <label class="btn" for="fLoad">เปิดโปรเจกต์</label><input id="fLoad" type="file" accept=".json,application/json" hidden>
@@ -181,12 +181,14 @@ const SCHEMA=[
   ['dwg','เลขที่แบบ (prefix)','','DCH-ME','t'],['rev','Revision','','A','t'],
   ['by','ออกแบบโดย','','PD01','t'],['status','สถานะแบบ','','PRELIMINARY','t']]},
  {g:'กระบวนการ (Process)',open:true,f:[
-  ['prod','ของเหลวที่ให้ความร้อน','',[['juice','น้ำอ้อย (juice)'],['syrup','น้ำเชื่อม (syrup)']],'s'],
+  ['prod','ของเหลวที่ให้ความร้อน','',[['juice','น้ำอ้อย (juice)'],['syrup','น้ำเชื่อม (syrup)'],['carb','Carbonate liquor (refinery)']],'s'],
   ['qj','อัตราไหล (น้ำอ้อย/น้ำเชื่อม)','t/h',1312,1],['tin','อุณหภูมิเข้า','°C',92,0.5],['tout','อุณหภูมิออก','°C',100,0.5],
   ['bx','Brix','%',15,0.5],['pty','Purity','%',85,0.5],
   ['vmode','ระบุไอน้ำโดย','',[['P','ความดัน (bar a)'],['T','อุณหภูมิ (°C)']],'s'],
   ['pv','ความดันไอ (bleed vapour)','bar a',1.09,0.01],['tv','อุณหภูมิไอ (ถ้าเลือก T)','°C',102.3,0.1],
-  ['ncg','NCG <small>1.5–2 % ของไอ</small>','%',2,0.1]]},
+  ['ncg','NCG <small>1.5–2 % ของไอ (carbonate liquor 3–5)</small>','%',2,0.1],
+  ['ctl','วาล์วคุมไอ (TCV) ก่อนเข้าถัง','',[['1','มี – คุมอุณหภูมิออก'],['0','ไม่มี']],'s'],
+  ['apd','Approach ในถังเมื่อมี TCV <small>ใช้คำนวณความดันในถัง</small>','°C',3,0.5]]},
  {g:'ความเร็วออกแบบ',open:true,f:[
   ['vji','ท่อเข้า <small>juice: ปั๊ม 1.6–2.0 / gravity 1.0–1.1 · syrup: 0.8–1.5</small>','m/s',1.8,0.05],
   ['vjo','ท่อออก (gravity) <small>juice 1.0–1.1 · syrup 0.5–0.8</small>','m/s',1.05,0.05],
@@ -239,6 +241,9 @@ function calc(p){
   rep('ρ น้ำอ้อยเข้า / ออก','ρ20·(1−0.00055·(T−20))',`${fmt(ri,0)} / ${fmt(ro,0)}`,'kg/m³');
   // vapour
   const s=p.vmode==='T'?satT(p.tv):satP(p.pv); r.s=s;
+  const appr=s.T-p.tout; let sv=s, sup0=1; r.thr=false;
+  if(+p.ctl && appr>p.apd+0.5){ sv=satT(p.tout+p.apd); const hg1=s.hfg+4.187*s.T, hg2=sv.hfg+4.187*sv.T; r.Tsh=sv.T+(hg1-hg2)/1.95; sup0=(r.Tsh+273.15)/(sv.T+273.15); r.thr=true; }
+  r.sv=sv;
   rep('ไออิ่มตัว P / T',p.vmode==='T'?'จากอุณหภูมิ':'จากความดัน',`${fmt(s.P,3)} bar a / ${fmt(s.T,1)} °C`,'');
   rep('λ (latent heat)','ตารางไอน้ำ',s.hfg,'kJ/kg',1);
   rep('ν ไอ','ตารางไอน้ำ',s.vg,'m³/kg',3);
@@ -247,13 +252,14 @@ function calc(p){
   rep('ภาระความร้อน','Qj·Cp·ΔT',Q,'kW',0);
   const lam=s.hfg+4.187*(s.T-p.tout);
   rep('λ* ใช้คำนวณ','λ + Cp,w·(Tvap − Tjuice,out)',lam,'kJ/kg',1);
-  const mv=Q/lam, Qv=mv*s.vg;
+  const mv=Q/lam, Qv=mv*sv.vg*sup0;
+  if(r.thr) rep('ความดันในถัง (หลัง TCV)','Tsat = T_out + approach ในถัง',`${fmt(sv.P,3)} bar a / ${fmt(sv.T,1)} °C, ไอหลังวาล์ว ~${fmt(r.Tsh,0)} °C`,'');
   rep('ปริมาณไอ Qv','Qj·Cp·ΔT / λ*',mv*3.6,'t/h',2);
   rep('ปริมาตรไอ','Qv × ν',Qv,'m³/s',3);
-  const appr=s.T-p.tout;
   if(dT<=0) chk('bad','อุณหภูมิออกต้องสูงกว่าอุณหภูมิเข้า');
   if(appr<1) chk('bad',`Approach ΔT = ${fmt(appr,1)} °C ต่ำกว่า 1 °C — ไอร้อนไม่พอจะให้น้ำอ้อยถึง ${p.tout} °C`);
-  else if(appr>20) chk('warn',`Approach ΔT = ${fmt(appr,1)} °C สูงกว่าช่วง 1–20 °C`);
+  else if(r.thr) chk(appr>20?'warn':'ok',`Approach ไอต้นทาง ${fmt(appr,1)} °C: TCV ลดความดัน ${fmt(s.P,3)} → ~${fmt(sv.P,3)} bar a ในถังจึงเหลือ approach ~${p.apd} °C (ไอหลังวาล์วร้อนยิ่งยวด ~${fmt(r.Tsh,0)} °C) ขนาดถัง/ท่อไอคิดที่ความดันในถัง${appr>20?' · ใช้ไอเกรดสูงเกินจำเป็น ควรพิจารณาไอ body ที่ T ≈ '+fmt(p.tout+3,0)+'–'+fmt(p.tout+10,0)+' °C':''}`);
+  else if(appr>20) chk('bad',`Approach ΔT = ${fmt(appr,1)} °C และไม่มี TCV: DCH ไม่มีพื้นที่ผิวจำกัดความร้อน ของเหลวจะร้อนเข้าใกล้ ${fmt(s.T,1)} °C ไม่ใช่ ${p.tout} °C ต้องมีวาล์วคุมไอตามอุณหภูมิออก`);
   else chk('ok',`Approach ΔT = ${fmt(appr,1)} °C (ช่วงปกติ 1–20 °C)`);
   const Qji=mj/ri, Qjo=(mj+mv)/ro, Qnc=p.ncg/100*Qv;
   const Dc=(q,v)=>Math.sqrt(4*q/(PI*v))*1000;
@@ -296,7 +302,7 @@ function calc(p){
   const vi=(q,pp)=>q/A(pp.ID);
   r.vel={vHole,vAnn,vRadH,vRadR,vjG1,vjG2,v1:vi(Qv,n1),v2:vi(Qji,n2),v3:vi(Qjo,n3),v4:vi(Qnc,n4)};
   const band=(v,lo,hi,txt)=>chk(v<lo*0.9||v>hi*1.1?'warn':'ok',`${txt} = ${fmt(v,2)} m/s (แนะนำ ${lo}–${hi})`);
-  band(r.vel.v1,18,32,'ไอในท่อ N1'); const syr=p.prod==='syrup';
+  band(r.vel.v1,18,32,'ไอในท่อ N1'); const syr=p.prod!=='juice', carb=p.prod==='carb';
   if(syr){band(r.vel.v2,0.8,1.5,'น้ำเชื่อมใน N2');} else band(r.vel.v2,p.vji>1.3?1.6:1.0,p.vji>1.3?2.0:1.1,'น้ำอ้อยใน N2');
   if(syr) band(r.vel.v3,0.5,0.8,'น้ำเชื่อมใน N3 (gravity)'); else band(r.vel.v3,0.9,1.1,'น้ำอ้อยใน N3'); band(r.vel.v4,10,20,'NCG ใน N4');
   band(vHole,8,10.5,'ไอผ่านรู bottom baffle'); band(vAnn,8,10.5,'ไอผ่านช่อง top baffle–shell');
@@ -310,10 +316,16 @@ function calc(p){
   const bpe=2*p.bx/(100-p.bx); r.bpe=bpe;
   if(p.bx>=30) chk('info',`BPE ประมาณ ${fmt(bpe,1)} °C: ของเหลวเข้มข้นอาจร้อนได้สูงกว่า T ไอ เล็กน้อย การตรวจ approach ข้างบนจึงเป็นค่าปลอดภัย`);
   const Patm=1.01325;
-  if(s.P<Patm){const hl=(Patm-s.P)*1e5/(ro*9.81); r.leg=hl;
-    chk('warn',`ถังทำงานใต้สุญญากาศ (${fmt(s.P,3)} bar a): ท่อออก N3 ต้องเป็น barometric leg สูง ≥ ${fmt(hl,2)} m + เผื่อ 1.0–1.2 m = ${fmt(hl+1.2,2)} m เหนือระดับซีล/ถังรับ หรือใช้ปั๊มที่ NPSH พอ`);
+  if(sv.P<Patm){const hl=(Patm-sv.P)*1e5/(ro*9.81); r.leg=hl;
+    chk('warn',`ถังทำงานใต้สุญญากาศ (${fmt(sv.P,3)} bar a): ท่อออก N3 ต้องเป็น barometric leg สูง ≥ ${fmt(hl,2)} m + เผื่อ 1.0–1.2 m = ${fmt(hl+1.2,2)} m เหนือระดับซีล/ถังรับ หรือใช้ปั๊มที่ NPSH พอ`);
     chk('warn',`ใต้สุญญากาศมีอากาศรั่วเข้าได้ ควรใช้ NCG ช่วงบน (≥ 2 %) และต่อ N4 เข้าระบบ condenser/vacuum`);}
-  else { r.leg=0; chk('ok',`ถังความดันบวก (${fmt(s.P,3)} bar a) น้ำออกไหลด้วยแรงดัน/gravity ไปถังรับได้`); }
+  else { r.leg=0; chk('ok',`ถังความดันบวก (${fmt(sv.P,3)} bar a) น้ำออกไหลด้วยแรงดัน/gravity ไปถังรับได้`); }
+  if(carb){
+    const tf=r.thr?sv.T+bpe:s.T+bpe;
+    chk(p.tout>85?'warn':'info',`Carbonate liquor (pH ด่าง ~8–8.5): อุณหภูมิออก ${p.tout} °C ${p.tout>85?'สูงกว่า ~85 °C เสี่ยงสีเพิ่มและน้ำตาลรีดิวซ์สลายตัว':'อยู่ในช่วงปกติของ carbonatation'} · ผิวม่านของเหลวสัมผัสไอได้สูงสุด ~${fmt(tf,0)} °C ${r.thr?'(จำกัดด้วยความดันในถังหลัง TCV)':'(= อุณหภูมิไอ + BPE)'}`);
+    if(p.ncg<3) chk('warn',`Carbonate liquor ปล่อย CO2 เมื่อถูกให้ความร้อน (bicarbonate สลายตัว) NCG จะมากกว่าน้ำอ้อย แนะนำตั้ง NCG 3–5 % และต่อ N4 ไป vent/condenser (ค่าประมาณ ไม่ได้มาจากต้นฉบับ)`);
+    chk('warn','ตะกรัน CaCO3 อาจเกาะ baffle/กรวยล่าง (โดยเฉพาะถ้าเป็น liquor ก่อนกรอง): ใช้กรวยล่าง 60°, ล้างด้วย N6 ตามรอบ, เปิด M1/M2 ตรวจ gap');
+  }
   if(p.bx>=40){
     chk('warn',`ของเหลวหนืด (Bx ${p.bx}, ~${p.bx>=60?'20–40':'5–15'} mPa·s ที่ 70–80 °C เทียบน้ำอ้อย ~0.5): วิธีในต้นฉบับพัฒนาสำหรับน้ำอ้อย ม่านน้ำเชื่อมจะหนาและไหลช้ากว่า ควรใช้ gap ช่วงบน (G1 ≥ 55, G2 ≥ 45), ความเร็วในท่อช่วง syrup และตรวจ pressure drop ท่อออก`);
     if(vjG1>1.5||vjG2>1.5) chk('warn',`ความเร็วม่านน้ำเชื่อมผ่าน gap สูง (${fmt(vjG1,2)} / ${fmt(vjG2,2)} m/s) แนะนำ ≤ 1.5 m/s: เพิ่ม G1/G2 หรือเพิ่มค่าเพิ่ม D_top`);}
@@ -336,8 +348,8 @@ function calc(p){
   const proj=d=>Ro+p.lp; // centre to flange face
   const noz=[
    {m:'N1',sv:'VAPOUR INLET',th:'ไอเข้า',pp:n1,q:Qv,v:r.vel.v1,o:p.oN1,z:Hann/2,typ:'side',calc:dVap,pad:true},
-   {m:'N2',sv:(syr?'SYRUP':'JUICE')+' INLET',th:'น้ำอ้อยเข้า',pp:n2,q:Qji,v:r.vel.v2,o:p.oN2,z:zN2,typ:'side',calc:dJi,pad:true},
-   {m:'N3',sv:(syr?'SYRUP':'JUICE')+' OUTLET',th:'น้ำอ้อยออก',pp:n3,q:Qjo,v:r.vel.v3,o:0,z:-Hcone,typ:'bot',calc:dJo,pad:false},
+   {m:'N2',sv:({syrup:'SYRUP',carb:'LIQUOR'}[p.prod]||'JUICE')+' INLET',th:'น้ำอ้อยเข้า',pp:n2,q:Qji,v:r.vel.v2,o:p.oN2,z:zN2,typ:'side',calc:dJi,pad:true},
+   {m:'N3',sv:({syrup:'SYRUP',carb:'LIQUOR'}[p.prod]||'JUICE')+' OUTLET',th:'น้ำอ้อยออก',pp:n3,q:Qjo,v:r.vel.v3,o:0,z:-Hcone,typ:'bot',calc:dJo,pad:false},
    {m:'N4',sv:'NCG VENT',th:'ระบาย NCG',pp:n4,q:Qnc,v:r.vel.v4,o:0,z:zTop,typ:'top',calc:dNc,pad:false},
    {m:'N5',sv:'PT / PI',th:'วัดความดัน',pp:pickPipe(0,ss,0,1),o:p.oN5,z:zN2t+p.hvs*0.75,typ:'side',pad:false},
    {m:'N6',sv:'WATER WASH',th:'น้ำล้าง',pp:pickPipe(0,ss,0,2),o:p.oN6,z:zN2t+200,typ:'side',pad:false},
@@ -567,7 +579,7 @@ function detailFlag(v,x,z,rWorld,letter,dx=1){const a=v.P(x,z);const rr=Math.max
 
 /* ---------------- SHEET 1 : GA ---------------- */
 function sheetGA(r){
-  const PROD=r.p.prod==='syrup'?'SYRUP':'JUICE';
+  const PROD={syrup:'SYRUP',carb:'LIQUOR'}[r.p.prod]||'JUICE';
   const sh=new Sheet(594,420),g=r.g,p=r.p,W=r.weights,R=g.Ds/2,t=p.ts,Ro=g.Ro,L=r.lug;
   const side=g.noz.filter(n=>n.typ==='side');
   const xR=Math.max(Ro+p.lp+60,Ro+t+L.b+60), zMin=-g.Hcone-p.lp-60, zMax=g.zTop+p.lp+80;
@@ -667,7 +679,7 @@ function sheetGA(r){
   notes.forEach((l,i)=>sh.text(268,yb-8-i*4.1,l,i?2.1:2.8,{}));
   // ---------- design data + weights
   const dt=Math.ceil((r.s.T+15)/10)*10;
-  const dd=[[PROD+' FLOW',`${fmt(p.qj)} t/h  (Bx ${p.bx})`],[PROD+' TEMP IN / OUT',`${p.tin} / ${p.tout} °C`],['HEATING VAPOUR',`${fmt(r.s.P,3)} bar a / ${fmt(r.s.T,1)} °C`],
+  const dd=[[PROD+' FLOW',`${fmt(p.qj)} t/h  (Bx ${p.bx})`],[PROD+' TEMP IN / OUT',`${p.tin} / ${p.tout} °C`],['HEATING VAPOUR',`${fmt(r.s.P,3)} bar a / ${fmt(r.s.T,1)} °C`],['VESSEL OPER. PRESS.',r.thr?`${fmt(r.sv.P,3)} bar a (AFTER TCV)`:`${fmt(r.s.P,3)} bar a`],
    ['VAPOUR CONSUMPTION',`${fmt(r.flow.mv*3.6,2)} t/h`],['HEAT DUTY',`${fmt(r.flow.Q)} kW`],['DESIGN PRESSURE',`${p.pd} bar g${+p.fv?' / FULL VAC.':''}`],['DESIGN TEMP.',`${dt} °C`],
    ['MATERIAL',r.M.name],['CORR. ALLOWANCE',`${p.ca} mm`],['SHELL',`ID ${g.Ds} × t${p.ts}`],['CONES BTM / TOP',`t${p.tc} / t${p.tt}`],['BAFFLES',`${p.nset} SETS t${p.tb}`],
    ['CAPACITY',`${fmt(W.Vtot,2)} m³`],['EMPTY WEIGHT',`${fmt(W.empty)} kg`],['OPERATING WEIGHT',`${fmt(W.oper)} kg`],['HYDROTEST WEIGHT',`${fmt(W.hydro)} kg`],['CODE (REF.)','ASME VIII DIV.1']];
@@ -943,7 +955,7 @@ function renderMethod(){
   <li>มุม 130°/120° เป็นมุมยอด (included) → ความชันจากแนวนอน φ = (180 − มุม)/2 = 25° / 30° ส่วนมุมกรวยล่าง 55° วัดจากแนวนอน</li>
   <li>ความเร็วไอในท่อเข้าไม่ระบุในต้นฉบับ ใช้ค่าทั่วไป 20–30 m/s (ปรับได้)</li>
   <li>gap1 = ระยะดิ่งจากขอบบน bottom baffle (ที่ shell) ถึงขอบร่มตัวบน; gap2 = ระยะดิ่งจากรูกลาง bottom baffle ถึงยอดร่มตัวล่าง</li>
-  <li>z = 0 ที่ BTL (รอยต่อกรวยล่างกับ shell) ลำดับจากล่างขึ้นบน: annulus → ร่ม → กรวย → … → juice inlet → vapour space → กรวยบน</li>
+  <li>DCH ไม่มีพื้นที่ผิวจำกัดความร้อน ของเหลวจะร้อนจนเกือบเท่าอุณหภูมิอิ่มตัวของไอในถัง ถ้าไอต้นทางร้อนกว่าที่ต้องการมาก (approach > ~5 °C) ต้องมี TCV คุมไอตามอุณหภูมิออก ถังจะทำงานที่ความดันหลังวาล์ว (Tsat ≈ T_out + approach ในถัง) โปรแกรมจึงคิดปริมาตรไอ ขนาดถัง ท่อไอ และ barometric leg ที่ความดันนี้</li><li>z = 0 ที่ BTL (รอยต่อกรวยล่างกับ shell) ลำดับจากล่างขึ้นบน: annulus → ร่ม → กรวย → … → juice inlet → vapour space → กรวยบน</li>
   <li>เพิ่มการตรวจสอบที่ต้นฉบับไม่มี: ความเร็วไอแนวรัศมีในช่องระหว่าง baffle, ความหนา shell รับแรงดันภายใน (ASME UG-27), รับ full vacuum โดยประมาณ (Windenburg–Trilling, FS 3; baffle ที่เชื่อมรอบ shell ถือเป็นแนวค้ำ), ขนาด lug จากน้ำหนัก</li></ul>
   <h4>ข้อจำกัด</h4><p>เป็นการออกแบบเบื้องต้นเพื่อกำหนดขนาด ทำแบบประกอบ และประมาณน้ำหนัก ชิ้นส่วนรับแรงดันต้องตรวจสอบโดยวิศวกรตาม ASME VIII Div.1 และมาตรฐานโรงงานก่อนสั่งผลิต ขนาดหน้าแปลน/น้ำหนักเป็นค่าประมาณ</p>
   <h4>การใช้งานบนเครื่องอื่น</h4><p>ไฟล์ <b>DCH_Designer.html</b> เป็นไฟล์เดียว ทำงานออฟไลน์ เปิดด้วย Chrome/Edge ได้ทุกเครื่องโดยไม่ต้องติดตั้ง (คัดลอกผ่าน USB/แชร์ไดรฟ์ได้) ปุ่ม “บันทึกโปรเจกต์” เก็บค่าเป็น .json เพื่อเปิดต่อบนเครื่องอื่น ดาวน์โหลด DXF/SVG/CSV และพิมพ์เป็น PDF ได้จากไฟล์ออฟไลน์</p></div>`;
