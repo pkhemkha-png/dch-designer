@@ -1,0 +1,978 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>DCH Designer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Thai:wght@400;600;700&display=swap">
+<style>/* Layout: fixed input rail on the left, tabbed drawing/report workspace on the right; stacks on phones */
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --ink:#18212b; --muted:#5b6876; --line:#d3dae2;
+  --accent:#0d6b86; --accent-ink:#ffffff; --accent-soft:#dcedf2;
+  --ok:#1f7a45; --warn:#a86400; --bad:#b3261e; --paper:#ffffff; --paper-ink:#111;
+  --f-ui:"IBM Plex Sans Thai","IBM Plex Sans","Segoe UI","Tahoma",sans-serif;
+  --f-mono:"IBM Plex Mono","Consolas","Menlo",monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12171d; --panel:#1a2129; --ink:#e3e8ee; --muted:#93a1af; --line:#2d3741;
+  --accent:#4fb3cf; --accent-ink:#06222b; --accent-soft:#18323b;
+  --ok:#5cc58a; --warn:#e3a645; --bad:#f07b72; --paper:#f7f8f9; --paper-ink:#111; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12171d; --panel:#1a2129; --ink:#e3e8ee; --muted:#93a1af; --line:#2d3741;
+  --accent:#4fb3cf; --accent-ink:#06222b; --accent-soft:#18323b;
+  --ok:#5cc58a; --warn:#e3a645; --bad:#f07b72; --paper:#f7f8f9; --paper-ink:#111; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--f-ui)}
+button,input,select{font:inherit;color:inherit}
+.top{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;padding-block:10px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{display:flex;flex-direction:column;min-width:0}
+.brand b{font-size:17px;letter-spacing:.2px}
+.brand span{color:var(--muted);font-size:12px}
+.top .sp{flex:1}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px 11px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn:focus-visible,.tab:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.wrap{display:grid;grid-template-columns:340px minmax(0,1fr);gap:0;min-height:calc(100% - 60px)}
+aside{border-right:1px solid var(--line);background:var(--panel);padding:10px 14px 40px;overflow:auto;max-height:calc(100vh - 60px);position:sticky;top:0}
+details.grp{border-bottom:1px solid var(--line);padding:6px 0}
+details.grp>summary{cursor:pointer;font-weight:600;padding:4px 0;list-style:none;display:flex;justify-content:space-between}
+details.grp>summary::after{content:"+";color:var(--muted)}
+details.grp[open]>summary::after{content:"–"}
+.f{display:grid;grid-template-columns:minmax(0,1fr) 92px 46px;gap:6px;align-items:center;padding:3px 0}
+.f label{font-size:13px;min-width:0}
+.f label small{display:block;color:var(--muted);font-size:11px;line-height:1.25}
+.f input,.f select{width:100%;padding:4px 6px;border:1px solid var(--line);border-radius:5px;background:var(--bg);font-family:var(--f-mono);font-size:13px;text-align:right}
+.f select{text-align:left;font-family:var(--f-ui)}
+.f.wide{grid-template-columns:minmax(0,1fr) 150px}
+.f .u{color:var(--muted);font-size:11px}
+main{min-width:0;padding:12px max(16px,env(safe-area-inset-right,0px)) 40px 16px}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.tab{border:0;background:none;padding:8px 12px;border-bottom:2px solid transparent;cursor:pointer;color:var(--muted)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.kpi span{display:block;color:var(--muted);font-size:12px}
+.kpi b{font-family:var(--f-mono);font-size:18px;font-variant-numeric:tabular-nums}
+.kpi i{font-style:normal;color:var(--muted);font-size:12px;margin-left:3px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:12px}
+.card h3{margin:0 0 8px;font-size:15px}
+.tblw{overflow-x:auto}
+table.t{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+table.t th,table.t td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
+table.t th{color:var(--muted);font-weight:600;font-size:12px;background:var(--bg)}
+table.t td.n{text-align:right;font-family:var(--f-mono)}
+table.t tr.tot td{font-weight:700;border-top:2px solid var(--ink)}
+code,.mono{font-family:var(--f-mono);font-size:12.5px}
+.chk{display:flex;gap:8px;align-items:flex-start;padding:5px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.pill{font-size:11px;font-weight:700;border-radius:20px;padding:1px 8px;white-space:nowrap}
+.pill.ok{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.pill.warn{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn)}
+.pill.bad{background:color-mix(in srgb,var(--bad) 18%,transparent);color:var(--bad)}
+.sheetbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
+.sheetbar .sp{flex:1}
+.viewer{background:#9aa5b1;border-radius:8px;overflow:hidden;position:relative;height:min(78vh,900px);touch-action:none;cursor:grab}
+.viewer svg{display:block;width:100%;height:100%;background:transparent}
+.hint{color:var(--muted);font-size:12px}
+.note{background:var(--accent-soft);border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+.method h4{margin:14px 0 4px}
+.method p,.method li{max-width:80ch}
+.formula{font-family:var(--f-mono);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 10px;margin:4px 0;overflow-x:auto;white-space:nowrap}
+#toast{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:6px;opacity:0;transition:opacity .2s;pointer-events:none}
+#toast.on{opacity:1}
+textarea.dump{width:100%;height:160px;font-family:var(--f-mono);font-size:11px;background:var(--bg);border:1px solid var(--line);border-radius:6px}
+@media (max-width:820px){
+  .wrap{grid-template-columns:1fr}
+  aside{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  main{padding-left:max(16px,env(safe-area-inset-left,0px))}
+  .viewer{height:62vh}
+}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+#printArea{display:none}
+@media print{
+  @page{size:A3 landscape;margin:6mm}
+  body{background:#fff}
+  .top,.wrap,#toast{display:none!important}
+  #printArea{display:block}
+  #printArea svg{width:100%;height:auto;page-break-after:always;break-after:page}
+}
+</style></head><body>
+<div class="top">
+  <div class="brand"><b>DCH Designer</b><span>ออกแบบ Direct Contact Heater · คำนวณ · แบบสร้าง · น้ำหนัก</span></div>
+  <div class="sp"></div>
+  <button class="btn" id="bSave" type="button">บันทึกโปรเจกต์ (.json)</button>
+  <label class="btn" for="fLoad">เปิดโปรเจกต์</label><input id="fLoad" type="file" accept=".json,application/json" hidden>
+  <button class="btn" id="bReset" type="button">ค่าเริ่มต้น</button>
+  <button class="btn pri" id="bPrint" type="button">พิมพ์แบบ / PDF</button>
+</div>
+<div class="wrap">
+  <aside id="inputs" aria-label="ข้อมูลออกแบบ"></aside>
+  <main>
+    <div class="tabs" role="tablist" id="tabs">
+      <button class="tab" role="tab" data-t="res" aria-selected="true">ผลคำนวณ</button>
+      <button class="tab" role="tab" data-t="s1">แบบ GA</button>
+      <button class="tab" role="tab" data-t="s2">แบบขยายรายละเอียด</button>
+      <button class="tab" role="tab" data-t="s3">แบบคลี่แผ่น / Cutting</button>
+      <button class="tab" role="tab" data-t="wt">น้ำหนัก / BOM</button>
+      <button class="tab" role="tab" data-t="ser">DCH อนุกรม</button>
+      <button class="tab" role="tab" data-t="met">วิธีการออกแบบ</button>
+    </div>
+    <section id="p-res"></section>
+    <section id="p-sheet" hidden>
+      <div class="sheetbar">
+        <b id="sheetTitle"></b><span class="sp"></span>
+        <button class="btn" type="button" id="zFit">พอดีจอ</button>
+        <button class="btn" type="button" id="zIn">＋</button>
+        <button class="btn" type="button" id="zOut">－</button>
+        <button class="btn" type="button" id="dSvg">SVG</button>
+        <button class="btn" type="button" id="dDxf">DXF (AutoCAD)</button>
+      </div>
+      <div class="viewer" id="viewer"></div>
+      <p class="hint">ลากเพื่อเลื่อน · ล้อเมาส์เพื่อซูม · แผ่นขนาด A2 (594×420) พิมพ์ลง A3 ได้ · DXF เป็นหน่วยมม.บนกระดาษ (paper space 1:1) ระบุมาตราส่วนในแต่ละวิว</p>
+      <div id="copyBox" hidden><p class="hint">หน้านี้เปิดอยู่ในตัวแสดงผลออนไลน์ซึ่งดาวน์โหลดไฟล์ไม่ได้ ข้อความไฟล์ถูกวางไว้ด้านล่าง (คัดลอกไปบันทึกเป็นไฟล์) หรือใช้เวอร์ชันออฟไลน์ DCH_Designer.html เพื่อดาวน์โหลดและพิมพ์โดยตรง</p><textarea class="dump" id="dump" readonly></textarea></div>
+    </section>
+    <section id="p-wt" hidden></section>
+    <section id="p-ser" hidden></section>
+    <section id="p-met" hidden></section>
+  </main>
+</div>
+<div id="printArea"></div>
+<div id="toast" role="status"></div>
+<script>
+/* ===== DCH design calculation (method: sugarprocesstech.com/direct-contact-heater-design) ===== */
+const PI=Math.PI, rad=d=>d*PI/180, deg=r=>r*180/PI;
+const ceilTo=(v,m)=>Math.ceil(v/m-1e-9)*m;
+const fmt=(v,d=0)=>Number.isFinite(v)?v.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}):'–';
+
+const MAT={
+  'SA516-70':{name:'CS SA-516 Gr.70',rho:7850,S:138,E:200000,ss:false},
+  'SS400':{name:'CS SS400 (JIS G3101)',rho:7850,S:100,E:200000,ss:false},
+  'SS304':{name:'SS304 (SA-240)',rho:7930,S:115,E:193000,ss:true},
+  'SS316':{name:'SS316L (SA-240)',rho:7980,S:108,E:193000,ss:true}
+};
+// NPS, OD mm, wall STD, wall 10S
+const PIPE=[[1,33.4,3.38,2.77],[1.5,48.3,3.68,2.77],[2,60.3,3.91,2.77],[3,88.9,5.49,3.05],[4,114.3,6.02,3.05],[6,168.3,7.11,3.40],[8,219.1,8.18,3.76],[10,273.1,9.27,4.19],[12,323.9,9.53,4.57],[14,355.6,9.53,4.78],[16,406.4,9.53,4.78],[18,457,9.53,4.78],[20,508,9.53,5.54],[22,559,9.53,5.54],[24,610,9.53,6.35],[26,660,9.53,6.35],[28,711,9.53,6.35],[30,762,9.53,6.35],[32,813,9.53,6.35],[34,864,9.53,6.35],[36,914,9.53,6.35],[40,1016,9.53,6.35],[42,1067,9.53,6.35],[48,1219,9.53,6.35]];
+// NPS, approx weight kg (ASME B16.5/B16.47B Cl.150 slip-on), flange OD mm, thickness mm, bolt n, bolt dia
+const FLG=[[1,1.1,108,14,4,'M12'],[1.5,1.6,127,17,4,'M12'],[2,2.3,152,19,4,'M16'],[3,3.6,191,24,4,'M16'],[4,5.9,229,24,8,'M16'],[6,8.6,279,25,8,'M20'],[8,13.6,343,29,8,'M20'],[10,19.5,406,30,12,'M24'],[12,29,483,32,12,'M24'],[14,41,533,35,12,'M27'],[16,52,597,37,16,'M27'],[18,59,635,40,16,'M30'],[20,75,699,43,20,'M30'],[22,90,749,46,20,'M33'],[24,110,813,48,20,'M33'],[26,120,786,50,36,'M20'],[28,135,837,52,40,'M20'],[30,150,887,54,44,'M20'],[32,170,941,56,48,'M20'],[34,190,995,58,40,'M24'],[36,215,1049,60,44,'M24'],[40,255,1157,62,44,'M27'],[42,280,1210,64,48,'M27'],[48,360,1384,70,44,'M30']];
+// Saturated steam: P bar a, T C, hfg kJ/kg, vg m3/kg
+const STEAM=[[0.10,45.81,2392.1,14.67],[0.15,53.97,2372.3,10.02],[0.20,60.06,2357.5,7.649],[0.25,64.96,2345.4,6.203],[0.30,69.10,2335.3,5.229],[0.40,75.86,2318.4,3.993],[0.50,81.32,2304.7,3.240],[0.60,85.93,2293.1,2.732],[0.70,89.93,2282.7,2.365],[0.80,93.49,2273.5,2.087],[0.90,96.69,2265.3,1.869],[1.00,99.61,2257.5,1.694],[1.10,102.29,2250.8,1.549],[1.20,104.78,2243.6,1.428],[1.40,109.29,2231.4,1.237],[1.60,113.30,2220.2,1.091],[1.80,116.91,2210.0,0.9775],[2.00,120.21,2201.6,0.8857],[2.50,127.41,2181.2,0.7187],[3.00,133.52,2163.5,0.6058],[3.50,138.86,2147.7,0.5242],[4.00,143.61,2133.4,0.4624],[5.00,151.83,2107.4,0.3748],[6.00,158.83,2085.8,0.3156]];
+
+function lerpTab(tab,xi,yi,x,fx=v=>v,fy=v=>v,iy=v=>v){
+  let i=0; while(i<tab.length-2 && fx(tab[i+1][xi])<fx(x)) i++;
+  const x0=fx(tab[i][xi]),x1=fx(tab[i+1][xi]),y0=fy(tab[i][yi]),y1=fy(tab[i+1][yi]);
+  return iy(y0+(y1-y0)*(fx(x)-x0)/(x1-x0));
+}
+function satP(P){const L=Math.log;return{P,T:lerpTab(STEAM,0,1,P,L),hfg:lerpTab(STEAM,0,2,P,L),vg:lerpTab(STEAM,0,3,P,L,L,Math.exp)}}
+function satT(T){return satP(lerpTab(STEAM,1,0,T,v=>v,Math.log,Math.exp))}
+
+function pickPipe(Dreq,ss,minNps=1,force=0){
+  for(const r of PIPE){const [nps,OD,ws,w10]=r; if(force&&nps!==force) continue; const w=ss?w10:ws; const ID=OD-2*w;
+    if(force||(nps>=minNps&&ID>=Dreq)) return {nps,OD,w,ID};}
+  const OD=ceilTo(Dreq+20,50); return {nps:Math.round(OD/25.4),OD,w:10,ID:OD-20,rolled:true};
+}
+function flg(nps){for(const f of FLG) if(f[0]>=nps-0.01) return {kg:f[1],OD:f[2],t:f[3],nb:f[4],bolt:f[5]};
+  const OD=nps*25.4*1.1+70; return {kg:360*Math.pow(nps/48,2),OD,t:70,nb:48,bolt:'M30'};}
+
+/* ---------- input schema ---------- */
+const SCHEMA=[
+ {g:'ข้อมูลโครงการ',open:false,f:[
+  ['prj','โครงการ','','Surin Sugar – New DCH','t'],['tag','Tag no.','','02.1.26 HT','t'],
+  ['dwg','เลขที่แบบ (prefix)','','DCH-ME','t'],['rev','Revision','','A','t'],
+  ['by','ออกแบบโดย','','PD01','t'],['status','สถานะแบบ','','PRELIMINARY','t']]},
+ {g:'กระบวนการ (Process)',open:true,f:[
+  ['qj','อัตราไหลน้ำอ้อย','t/h',1312,1],['tin','อุณหภูมิเข้า','°C',92,0.5],['tout','อุณหภูมิออก','°C',100,0.5],
+  ['bx','Brix น้ำอ้อย','%',15,0.5],
+  ['vmode','ระบุไอน้ำโดย','',[['P','ความดัน (bar a)'],['T','อุณหภูมิ (°C)']],'s'],
+  ['pv','ความดันไอ (bleed vapour)','bar a',1.09,0.01],['tv','อุณหภูมิไอ (ถ้าเลือก T)','°C',102.3,0.1],
+  ['ncg','NCG <small>1.5–2 % ของไอ</small>','%',2,0.1]]},
+ {g:'ความเร็วออกแบบ',open:true,f:[
+  ['vji','น้ำอ้อยเข้า <small>ปั๊ม 1.6–2.0 / gravity 1.0–1.1</small>','m/s',1.8,0.05],
+  ['vjo','น้ำอ้อยออก (gravity) <small>1.0–1.1</small>','m/s',1.05,0.05],
+  ['vvi','ท่อไอเข้า <small>ค่าทั่วไป 20–30 (ไม่ระบุในต้นฉบับ)</small>','m/s',25,0.5],
+  ['van','ไอผ่าน annulus/รูแผ่นกั้น <small>~10</small>','m/s',10,0.5],
+  ['vnc','NCG <small>10–20</small>','m/s',15,0.5]]},
+ {g:'รูปทรง / Baffle',open:true,f:[
+  ['nset','จำนวนชุด baffle (บน+ล่าง) <small>อย่างน้อย 2</small>','ชุด',3,1],
+  ['atop','มุม top baffle (included) <small>130°</small>','°',130,1],
+  ['abot','มุม bottom baffle (included) <small>120°</small>','°',120,1],
+  ['acone','มุมกรวยล่างจากแนวนอน <small>55–60°</small>','°',55,1],
+  ['dadd','Top baffle = Bottom + <small>100–120</small>','mm',110,5],
+  ['g1','ระยะ top→bottom baffle <small>40–60</small>','mm',50,5],
+  ['g2','ระยะ bottom→top baffle <small>25–50</small>','mm',40,5],
+  ['hvs','Vapour space (catchall) <small>1500–2000</small>','mm',1800,50],
+  ['hjg','Juice inlet → bottom baffle <small>200–250</small>','mm',225,5],
+  ['hta','Top baffle → bottom annulus <small>200–250</small>','mm',225,5],
+  ['aadd','Annulus = ท่อไอ + <small>50–100</small>','mm',75,5],
+  ['htc','ความสูงกรวยบน <small>0 = อัตโนมัติ 175/345</small>','mm',0,5],
+  ['dround','ปัดขนาด shell ขึ้นทีละ','mm',50,10]]},
+ {g:'เครื่องกล / วัสดุ',open:false,f:[
+  ['mat','วัสดุ','',Object.entries(MAT).map(([k,v])=>[k,v.name]),'s'],
+  ['ts','หนา shell','mm',10,1],['tc','หนากรวยล่าง','mm',10,1],['tt','หนากรวยบน','mm',10,1],
+  ['tb','หนาแผ่น baffle','mm',8,1],['tr','หนา annulus ring','mm',8,1],['ca','Corrosion allowance','mm',1.5,0.5],
+  ['pd','Design pressure (ภายใน)','bar g',1.0,0.1],['fv','ออกแบบรับ Full vacuum','',[['1','ใช่'],['0','ไม่']],'s'],
+  ['ej','Joint efficiency','',0.85,0.05],
+  ['lp','ระยะยื่นหน้าแปลน (จากผิว shell)','mm',250,10],
+  ['mh','ขนาด Manhole','NPS',20,2],
+  ['nlug','จำนวนขารับ (lug)','ตัว',4,1],['zlug','ระดับ lug เหนือ BTL <small>0 = อัตโนมัติ (เหนือ annulus)</small>','mm',0,50],
+  ['cont','เผื่อน้ำหนัก (weld/misc.)','%',10,1],
+  ['pw','ขนาดแผ่นเหล็ก กว้าง','mm',1524,1],['pl','ขนาดแผ่นเหล็ก ยาว','mm',6096,1]]},
+ {g:'ทิศทาง Nozzle (องศา ตามเข็มฯ จาก 0° = ทิศเหนือแบบ)',open:false,f:[
+  ['oN1','N1 ไอเข้า','°',90,5],['oN2','N2 น้ำอ้อยเข้า','°',270,5],['oM1','M1 Manhole บน','°',0,5],
+  ['oM2','M2 Manhole ล่าง','°',180,5],['oN5','N5 PT/PI','°',45,5],['oN6','N6 Water wash','°',315,5],['olug','Lug แรก','°',45,5]]},
+ {g:'บังคับขนาดท่อ (0 = อัตโนมัติ)',open:false,f:[
+  ['fN1','N1 ไอเข้า','NPS',0,1],['fN2','N2 น้ำอ้อยเข้า','NPS',0,1],['fN3','N3 น้ำอ้อยออก','NPS',0,1],['fN4','N4 NCG','NPS',0,1]]}
+];
+const DEF={}; SCHEMA.forEach(g=>g.f.forEach(f=>{DEF[f[0]]=f[4]==='s'?f[3][0][0]:f[3]}));
+
+/* ---------- main calc ---------- */
+function calc(p){
+  const r={p,chk:[],rep:[]}; const M=MAT[p.mat]||MAT['SA516-70']; r.M=M;
+  const rep=(s,f,v,u,d=2)=>r.rep.push([s,f,typeof v==='number'?fmt(v,d):v,u]);
+  const chk=(lvl,txt)=>r.chk.push([lvl,txt]);
+  // juice props
+  const cp=4.187*(1-0.006*p.bx), rho20=1000*(1+p.bx*(p.bx+200)/54000);
+  const rhoT=T=>rho20*(1-0.00055*(T-20));
+  const ri=rhoT(p.tin), ro=rhoT(p.tout);
+  rep('Cp น้ำอ้อย','4.187·(1−0.006·Bx)',cp,'kJ/kg·K',3);
+  rep('ρ น้ำอ้อยเข้า / ออก','ρ20·(1−0.00055·(T−20))',`${fmt(ri,0)} / ${fmt(ro,0)}`,'kg/m³');
+  // vapour
+  const s=p.vmode==='T'?satT(p.tv):satP(p.pv); r.s=s;
+  rep('ไออิ่มตัว P / T',p.vmode==='T'?'จากอุณหภูมิ':'จากความดัน',`${fmt(s.P,3)} bar a / ${fmt(s.T,1)} °C`,'');
+  rep('λ (latent heat)','ตารางไอน้ำ',s.hfg,'kJ/kg',1);
+  rep('ν ไอ','ตารางไอน้ำ',s.vg,'m³/kg',3);
+  const mj=p.qj/3.6; const dT=p.tout-p.tin; const Q=mj*cp*dT;
+  rep('มวลน้ำอ้อย Qj','t/h ÷ 3.6',mj,'kg/s');
+  rep('ภาระความร้อน','Qj·Cp·ΔT',Q,'kW',0);
+  const lam=s.hfg+4.187*(s.T-p.tout);
+  rep('λ* ใช้คำนวณ','λ + Cp,w·(Tvap − Tjuice,out)',lam,'kJ/kg',1);
+  const mv=Q/lam, Qv=mv*s.vg;
+  rep('ปริมาณไอ Qv','Qj·Cp·ΔT / λ*',mv*3.6,'t/h',2);
+  rep('ปริมาตรไอ','Qv × ν',Qv,'m³/s',3);
+  const appr=s.T-p.tout;
+  if(dT<=0) chk('bad','อุณหภูมิออกต้องสูงกว่าอุณหภูมิเข้า');
+  if(appr<1) chk('bad',`Approach ΔT = ${fmt(appr,1)} °C ต่ำกว่า 1 °C — ไอร้อนไม่พอจะให้น้ำอ้อยถึง ${p.tout} °C`);
+  else if(appr>20) chk('warn',`Approach ΔT = ${fmt(appr,1)} °C สูงกว่าช่วง 1–20 °C`);
+  else chk('ok',`Approach ΔT = ${fmt(appr,1)} °C (ช่วงปกติ 1–20 °C)`);
+  const Qji=mj/ri, Qjo=(mj+mv)/ro, Qnc=p.ncg/100*Qv;
+  const Dc=(q,v)=>Math.sqrt(4*q/(PI*v))*1000;
+  const dVap=Dc(Qv,p.vvi), dJi=Dc(Qji,p.vji), dJo=Dc(Qjo,p.vjo), dNc=Dc(Qnc,p.vnc);
+  rep('Ø ท่อไอเข้า (คำนวณ)','√(4·Qv/(π·v))',dVap,'mm',0);
+  rep('Ø ท่อน้ำอ้อยเข้า','√(4·Qj/(π·v))',dJi,'mm',0);
+  rep('Ø ท่อน้ำอ้อยออก','√(4·(Qj+Qv)/(π·v))  (condensate = ไอ)',dJo,'mm',0);
+  rep('Ø ท่อ NCG','√(4·Q_NCG/(π·v)), Q_NCG = %·Qv',dNc,'mm',0);
+  const ss=M.ss;
+  const n1=pickPipe(dVap,ss,2,p.fN1), n2=pickPipe(dJi,ss,2,p.fN2), n3=pickPipe(dJo,ss,2,p.fN3), n4=pickPipe(dNc,ss,2,p.fN4);
+  // shell & baffles
+  const DbbC=Dc(Qv,p.van), Dbb=ceilTo(DbbC,10), Dtb=Dbb+p.dadd;
+  const DsC=Math.sqrt(Dbb*Dbb+Dtb*Dtb), Ds=ceilTo(DsC,p.dround||10);
+  rep('Ø bottom baffle (รู) = Ø bottom annulus','√(4·Qv/(π·v_annulus))',`${fmt(DbbC,0)} → ${Dbb}`,'mm');
+  rep('Ø top baffle','D_bottom + '+p.dadd,Dtb,'mm',0);
+  rep('Ø shell (ID)','√(D_bottom² + D_top²)',`${fmt(DsC,0)} → ${Ds}`,'mm');
+  const bTop=(180-p.atop)/2, bBot=(180-p.abot)/2;
+  const Hbb=Math.tan(rad(bBot))*(Ds-Dbb)/2, Htb=Math.tan(rad(bTop))*Dtb/2;
+  const Dout=n3.OD; const Hcone=Math.tan(rad(p.acone))*(Ds-n3.ID)/2;
+  rep('สูง bottom baffle','tan('+fmt(bBot,1)+'°)·(Ds − D_bottom)/2',Hbb,'mm',0);
+  rep('สูง top baffle','tan('+fmt(bTop,1)+'°)·D_top/2',Htb,'mm',0);
+  rep('สูงกรวยล่าง','tan('+p.acone+'°)·(Ds − D_outlet)/2',Hcone,'mm',0);
+  const Hann=n1.OD+p.aadd; rep('สูง bottom annulus','Ø ท่อไอ (OD) + '+p.aadd,Hann,'mm',0);
+  const Htc=p.htc>0?p.htc:(Ds<=1100?175:345); rep('สูงกรวยบน',p.htc>0?'กำหนดเอง':'Ds ≤ 1100 → 175 / > 1100 → 345',Htc,'mm',0);
+  const pitch=Hbb+Htb+p.g1+p.g2; rep('ระยะต่อชุด baffle','H_bottom + H_top + gap1 + gap2',pitch,'mm',0);
+  // stack (z=0 at BTL = bottom tangent line, cone/shell junction)
+  const sets=[]; let z=Hann+p.hta;
+  for(let i=0;i<p.nset;i++){const zUr=z, zUa=z+Htb, zFh=zUa+p.g2, zFt=zFh+Hbb; sets.push({zUr,zUa,zFh,zFt}); z=zFt+p.g1;}
+  const zSets=z, zN2=zSets+p.hjg+n2.OD/2, zN2t=zSets+p.hjg+n2.OD, TTL=zN2t+p.hvs, zTop=TTL+Htc;
+  const Htot=Htc+p.hvs+n2.OD+p.hjg+p.nset*pitch+p.hta+Hann+Hcone;
+  rep('ความสูงรวม (กรวยบน→ปลายกรวยล่าง)','ตามสูตรผลรวม',Htot,'mm',0);
+  rep('ความสูง shell ทรงกระบอก (BTL→TTL)','',TTL,'mm',0);
+  // velocity checks
+  const A=d=>PI*d*d/4e6;
+  const vHole=Qv/A(Dbb), vAnn=Qv/(A(Ds)-A(Dtb));
+  const tA=Math.tan(rad(bTop)), tB=Math.tan(rad(bBot));
+  const cHole=p.g2+tA*Dbb/2, cRim=p.g1+tB*(Ds-Dtb)/2;
+  const vRadH=Qv/(PI*Dbb*cHole/1e6), vRadR=Qv/(PI*Dtb*cRim/1e6);
+  const vjG2=Qji/(PI*Dbb*p.g2/1e6), vjG1=Qji/(PI*Dtb*p.g1/1e6);
+  const vi=(q,pp)=>q/A(pp.ID);
+  r.vel={vHole,vAnn,vRadH,vRadR,vjG1,vjG2,v1:vi(Qv,n1),v2:vi(Qji,n2),v3:vi(Qjo,n3),v4:vi(Qnc,n4)};
+  const band=(v,lo,hi,txt)=>chk(v<lo*0.9||v>hi*1.1?'warn':'ok',`${txt} = ${fmt(v,2)} m/s (แนะนำ ${lo}–${hi})`);
+  band(r.vel.v1,18,32,'ไอในท่อ N1'); band(r.vel.v2,p.vji>1.3?1.6:1.0,p.vji>1.3?2.0:1.1,'น้ำอ้อยใน N2');
+  band(r.vel.v3,0.9,1.1,'น้ำอ้อยใน N3'); band(r.vel.v4,10,20,'NCG ใน N4');
+  band(vHole,8,10.5,'ไอผ่านรู bottom baffle'); band(vAnn,8,10.5,'ไอผ่านช่อง top baffle–shell');
+  chk(vRadH>15?'warn':'ok',`ไอแนวรัศมีที่ขอบรู bottom baffle = ${fmt(vRadH,1)} m/s (ช่องสูง ${fmt(cHole,0)} mm)`);
+  chk(vRadR>15?'warn':'ok',`ไอแนวรัศมีเหนือขอบ top baffle = ${fmt(vRadR,1)} m/s (ช่องสูง ${fmt(cRim,0)} mm)`);
+  chk('info',`ม่านน้ำอ้อยผ่าน gap: ขอบ top baffle ${fmt(vjG1,2)} m/s, รู bottom baffle ${fmt(vjG2,2)} m/s (ข้อมูลประกอบ)`);
+  if(p.nset<2) chk('bad','ต้องมี baffle อย่างน้อย 2 ชุด');
+  [['g1',40,60],['g2',25,50],['hvs',1500,2000],['hjg',200,250],['hta',200,250],['aadd',50,100],['dadd',100,120]].forEach(([k,lo,hi])=>{if(p[k]<lo||p[k]>hi) chk('warn',`${k} = ${p[k]} อยู่นอกช่วงแนะนำ ${lo}–${hi} mm`)});
+  if(p.acone<55||p.acone>60) chk('warn','มุมกรวยล่างนอกช่วง 55–60°');
+  // mechanical: internal pressure & vacuum
+  const Ro=Ds/2+p.ts, OD=Ds+2*p.ts;
+  const Pm=p.pd/10, treq=Pm*(Ds/2+p.ca)/(M.S*p.ej-0.6*Pm)+p.ca;
+  chk(p.ts>=treq?'ok':'bad',`ความหนา shell รับแรงดันภายใน ${p.pd} bar g: ต้องการ ≥ ${fmt(treq,1)} mm (ใช้ ${p.ts})`);
+  // unsupported lengths: BTL+1/3 cone → set1 funnel, between funnels, last funnel → TTL+1/3 top cone
+  const sup=[ -Hcone/3, ...sets.map(s=>s.zFt), TTL+Htc/3 ];
+  let Lmax=0; for(let i=1;i<sup.length;i++) Lmax=Math.max(Lmax,sup[i]-sup[i-1]);
+  const te=p.ts-p.ca, nu=0.3;
+  const Pcr=2.42*M.E/Math.pow(1-nu*nu,0.75)*Math.pow(te/OD,2.5)/(Lmax/OD-0.45*Math.sqrt(te/OD)); // MPa
+  const Pall=Pcr/3*10; // bar, FS 3
+  r.vac={Lmax,Pcr:Pcr*10,Pall};
+  if(+p.fv) chk(Pall>=1.013?'ok':'bad',`Full vacuum (ประมาณ Windenburg–Trilling, FS=3): ความยาวไม่มีค้ำสูงสุด ${fmt(Lmax,0)} mm → รับได้ ${fmt(Pall,2)} bar ${Pall>=1.013?'≥':'<'} 1.013 bar ${Pall<1.013?'— เพิ่มความหนาหรือเพิ่ม stiffener ring':''} (ตรวจซ้ำตาม ASME VIII UG-28)`);
+  // nozzles
+  const mhP=pickPipe(0,ss,0,p.mh)||pickPipe(480,ss);
+  const proj=d=>Ro+p.lp; // centre to flange face
+  const noz=[
+   {m:'N1',sv:'VAPOUR INLET',th:'ไอเข้า',pp:n1,q:Qv,v:r.vel.v1,o:p.oN1,z:Hann/2,typ:'side',calc:dVap,pad:true},
+   {m:'N2',sv:'JUICE INLET',th:'น้ำอ้อยเข้า',pp:n2,q:Qji,v:r.vel.v2,o:p.oN2,z:zN2,typ:'side',calc:dJi,pad:true},
+   {m:'N3',sv:'JUICE OUTLET',th:'น้ำอ้อยออก',pp:n3,q:Qjo,v:r.vel.v3,o:0,z:-Hcone,typ:'bot',calc:dJo,pad:false},
+   {m:'N4',sv:'NCG VENT',th:'ระบาย NCG',pp:n4,q:Qnc,v:r.vel.v4,o:0,z:zTop,typ:'top',calc:dNc,pad:false},
+   {m:'N5',sv:'PT / PI',th:'วัดความดัน',pp:pickPipe(0,ss,0,1),o:p.oN5,z:zN2t+p.hvs*0.75,typ:'side',pad:false},
+   {m:'N6',sv:'WATER WASH',th:'น้ำล้าง',pp:pickPipe(0,ss,0,2),o:p.oN6,z:zN2t+200,typ:'side',pad:false},
+   {m:'M1',sv:'MANHOLE',th:'ช่องคนลอด (บน)',pp:mhP,o:p.oM1,z:zN2t+p.hvs/2,typ:'side',pad:true,mh:true},
+   {m:'M2',sv:'MANHOLE',th:'ช่องคนลอด (ล่าง)',pp:mhP,o:p.oM2,z:Math.max(Hann/2,mhP.OD/2+120),typ:'side',pad:true,mh:true}
+  ];
+  noz.forEach(n=>{n.f=flg(n.pp.nps); n.R=n.typ==='side'?proj():(n.typ==='top'?zTop+p.lp:-Hcone-p.lp); n.side=(((n.o%360)+360)%360)<180?1:-1;});
+  r.g={Ds,Dbb,Dtb,DsC,DbbC,Ro,OD,Hbb,Htb,Hcone,Hann,Htc,pitch,sets,zSets,zN2,zN2t,TTL,zTop,Htot,bTop,bBot,ts:p.ts,noz,
+       cHole,cRim,Dout,n3,n4};
+  r.flow={mj,mv,Q,Qv,Qji,Qjo,Qnc,lam,cp,ri,ro,appr};
+  if(!(p.zlug>0)) p.zlug=Math.round((Hann+150)/50)*50;
+  r.weights=weights(r);
+  return r;
+}
+
+/* ---------- lug sizing ---------- */
+function lugSize(Wop,n){const w=Wop/n;
+  if(w<3000) return {b:250,d:200,tb:20,hg:300,tg:12,bolt:'M20',hole:24,pad:12};
+  if(w<8000) return {b:300,d:250,tb:25,hg:400,tg:16,bolt:'M24',hole:28,pad:14};
+  if(w<16000) return {b:400,d:300,tb:32,hg:500,tg:20,bolt:'M30',hole:34,pad:16};
+  return {b:500,d:400,tb:40,hg:650,tg:25,bolt:'M36',hole:40,pad:20};}
+
+/* ---------- development geometry for frustum (mean surface) ---------- */
+function frustDev(R1,R2,h){const s=Math.hypot(h,R1-R2); const L1=R1>R2?s*R1/(R1-R2):1e9; const L2=L1-s; const th=360*R1/L1; return {s,L1,L2,th,area:PI*(R1+R2)*s};}
+
+/* ---------- weights ---------- */
+function weights(r){
+  const p=r.p,g=r.g,rho=r.M.rho/1e9; // kg/mm3
+  const W=[]; const add=(grp,item,spec,qty,unit)=>W.push({grp,item,spec,qty,unit,tot:qty*unit});
+  const shellH=g.TTL;
+  add('Shell','Shell ทรงกระบอก',`ID ${g.Ds} × t${p.ts} × H${fmt(shellH,0)}`,1,PI*(g.Ds+p.ts)*shellH*p.ts*rho);
+  const bc=frustDev(g.Ds/2+p.tc/2,g.n3.OD/2+p.tc/2,g.Hcone);
+  add('Shell','กรวยล่าง (Bottom cone)',`${p.acone}°, t${p.tc}, H${fmt(g.Hcone,0)}`,1,bc.area*p.tc*rho);
+  const tc=frustDev(g.Ds/2+p.tt/2,g.n4.OD/2+p.tt/2,g.Htc);
+  add('Shell','กรวยบน (Top cone)',`t${p.tt}, H${fmt(g.Htc,0)}`,1,tc.area*p.tt*rho);
+  const fb=frustDev(g.Ds/2,g.Dbb/2,g.Hbb);
+  add('Internals','Bottom baffle (กรวยรับ)',`${p.abot}°, OD${g.Ds}/ID${g.Dbb}, t${p.tb}`,p.nset,fb.area*p.tb*rho);
+  const tb=frustDev(g.Dtb/2,0,g.Htb);
+  add('Internals','Top baffle (ร่ม)',`${p.atop}°, Ø${g.Dtb}, t${p.tb}`,p.nset,tb.area*p.tb*rho);
+  const brL=(g.Ds-g.Dtb)/2+200;
+  add('Internals','ขาค้ำ top baffle FB 75×10',`L≈${fmt(brL,0)}`,p.nset*3,75*10*brL*rho);
+  add('Internals','Bottom annulus ring',`Ø${g.Dbb} × H${fmt(g.Hann,0)} × t${p.tr}`,1,PI*(g.Dbb+p.tr)*g.Hann*p.tr*rho);
+  add('Internals','ขาค้ำ annulus FB 75×10',`L≈${fmt((g.Ds-g.Dbb)/2,0)}`,4,75*10*(g.Ds-g.Dbb)/2*rho);
+  g.noz.forEach(n=>{
+    const pp=n.pp, L=(n.typ==='side'?p.lp+p.ts+20:p.lp+20);
+    const pipe=PI*(pp.OD-pp.w)*pp.w*L*rho;
+    let fl=n.f.kg*(n.mh?2:1); if(n.mh) fl+=PI/4*n.f.OD*n.f.OD*Math.max(16,n.f.t*0.5)*rho*0.5; // cover approx
+    let pad=0; if(n.pad){pad=PI/4*(4*pp.OD*pp.OD-pp.OD*pp.OD)*p.ts*rho;}
+    add('Nozzles',`${n.m} ${n.sv}`,`${pp.nps}" ${n.mh?'+ blind cover + davit':''}`,1,pipe+fl+pad+(n.mh?15:0));
+  });
+  // operating weight first pass for lug sizing
+  const Vcyl=PI/4*g.Ds*g.Ds*shellH/1e9, Vbc=PI*g.Hcone*((g.Ds/2)**2+(g.Ds/2)*(g.n3.ID/2)+(g.n3.ID/2)**2)/3/1e9,
+        Vtc=PI*g.Htc*((g.Ds/2)**2+(g.Ds/2)*(g.n4.ID/2)+(g.n4.ID/2)**2)/3/1e9;
+  const Vtot=Vcyl+Vbc+Vtc;
+  let sub=W.reduce((a,b)=>a+b.tot,0);
+  const hold=(Vbc+PI/4*g.Ds*g.Ds*g.Hann/1e9*0.3)*r.flow.ro + fb.area*20*p.nset/1e9*r.flow.ro; // cone full + film
+  const L=lugSize((sub+hold)*1.15,p.nlug); r.lug=L;
+  const lugKg=(L.b*L.d*L.tb + 2*0.5*L.b*L.hg*L.tg + (L.d+150)*(L.hg+L.tb+100)*L.pad)*rho;
+  add('Supports',`Support lug (base ${L.b}×${L.d}×${L.tb}, gusset ${L.tg})`,`bolt ${L.bolt}`,p.nlug,lugKg);
+  add('Supports','Lifting lug','PL 25 + pad',2,(250*200*25+300*250*10)*rho);
+  sub=W.reduce((a,b)=>a+b.tot,0);
+  const cont=sub*p.cont/100;
+  const empty=sub+cont, oper=empty+hold, hydro=empty+Vtot*1000;
+  return {items:W,sub,cont,empty,oper,hold,hydro,Vtot,dev:{bc,tc,fb,tb}};
+}
+
+/* ===== Minimal 2D CAD: entities in paper mm (y up) -> SVG / DXF ===== */
+const LAYERS={OUT:{c:7,w:0.45,col:'#111'},SEC:{c:8,w:0.2,col:'#333',fill:'#4a4f55'},THIN:{c:7,w:0.2,col:'#222'},
+  CEN:{c:1,w:0.15,col:'#b03a2e',dash:'7 1.5 1 1.5',lt:'CENTER'},HID:{c:8,w:0.18,col:'#666',dash:'2 1.2',lt:'DASHED'},
+  DIM:{c:5,w:0.15,col:'#1d4f91'},TXT:{c:7,w:0.2,col:'#111'},BRD:{c:7,w:0.6,col:'#111'},FLOW:{c:3,w:0.25,col:'#2a7a3a'},VAP:{c:6,w:0.25,col:'#8a2d7a',dash:'2.5 1.2',lt:'DASHED'},NOTE:{c:2,w:0.2,col:'#7a4a00'}};
+class Sheet{
+  constructor(w,h,title){this.w=w;this.h=h;this.title=title;this.e=[]}
+  line(x1,y1,x2,y2,L='OUT'){this.e.push({t:'l',x1,y1,x2,y2,L})}
+  pl(pts,L='OUT',closed=false){for(let i=0;i<pts.length-1;i++)this.line(pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1],L);if(closed&&pts.length>2)this.line(pts.at(-1)[0],pts.at(-1)[1],pts[0][0],pts[0][1],L)}
+  rect(x,y,w,h,L='OUT'){this.pl([[x,y],[x+w,y],[x+w,y+h],[x,y+h]],L,true)}
+  fill(pts,L='SEC'){this.e.push({t:'f',pts,L})}
+  circ(x,y,r,L='OUT'){this.e.push({t:'c',x,y,r,L})}
+  arc(x,y,r,a1,a2,L='OUT'){this.e.push({t:'a',x,y,r,a1,a2,L})}
+  text(x,y,s,h=2.5,o={}){this.e.push({t:'t',x,y,s:String(s),h,ha:o.ha||'l',va:o.va||'b',rot:o.rot||0,L:o.L||'TXT'})}
+  arrow(x,y,ux,uy,L='DIM',len=2.6,wd=0.9){const nx=-uy,ny=ux;this.fill([[x,y],[x-ux*len+nx*wd,y-uy*len+ny*wd],[x-ux*len-nx*wd,y-uy*len-ny*wd]],L)}
+  dim(p1,p2,u,off,txt,o={}){ // aligned/linear dimension in paper coords; u unit along measure
+    const n=[-u[1],u[0]]; const dot=(a,b)=>a[0]*b[0]+a[1]*b[1];
+    const c=dot(p1,n)+off; const d1=[p1[0]+n[0]*(c-dot(p1,n)),p1[1]+n[1]*(c-dot(p1,n))], d2=[p2[0]+n[0]*(c-dot(p2,n)),p2[1]+n[1]*(c-dot(p2,n))];
+    const sg=Math.sign(off)||1;
+    const ext=(p,d)=>{const L0=Math.abs(c-dot(p,n)); if(L0>1.2) this.line(p[0]+n[0]*sg*1,p[1]+n[1]*sg*1,d[0]+n[0]*sg*1.5,d[1]+n[1]*sg*1.5,'DIM')};
+    if(!o.noext){ext(p1,d1);ext(p2,d2);}
+    this.line(d1[0],d1[1],d2[0],d2[1],'DIM');
+    const v=[d2[0]-d1[0],d2[1]-d1[1]]; const len=Math.hypot(...v)||1; const e=[v[0]/len,v[1]/len];
+    if(len>7){this.arrow(d1[0],d1[1],-e[0],-e[1]);this.arrow(d2[0],d2[1],e[0],e[1]);}
+    else{this.line(d1[0],d1[1],d1[0]-e[0]*4,d1[1]-e[1]*4,'DIM');this.line(d2[0],d2[1],d2[0]+e[0]*4,d2[1]+e[1]*4,'DIM');this.arrow(d1[0],d1[1],e[0],e[1]);this.arrow(d2[0],d2[1],-e[0],-e[1]);}
+    let ang=Math.atan2(e[1],e[0])*180/Math.PI; let tn=n; if(ang>90.1||ang<-89.9){ang+=180;}
+    const up=[-Math.sin(ang*Math.PI/180),Math.cos(ang*Math.PI/180)];
+    const h=o.h||2.5; const m=[(d1[0]+d2[0])/2+up[0]*0.8,(d1[1]+d2[1])/2+up[1]*0.8];
+    const tx=len<7&&!o.inside?[m[0]+e[0]*(len/2+6),m[1]+e[1]*(len/2+6)]:m;
+    this.text(tx[0],tx[1],txt,h,{ha:len<7&&!o.inside?'l':'c',va:'b',rot:ang,L:'DIM'});
+  }
+  leader(x,y,x2,y2,txt,h=2.5,L='TXT'){this.arrow(x,y,(x-x2)/Math.hypot(x-x2,y-y2),(y-y2)/Math.hypot(x-x2,y-y2),'DIM');this.line(x,y,x2,y2,'DIM');const dir=x2>=x?1:-1;
+    const lines=String(txt).split('\n'); const w=Math.max(...lines.map(l=>l.length))*h*0.62;
+    this.line(x2,y2,x2+dir*Math.min(w,6),y2,'DIM'); lines.forEach((l,i)=>this.text(x2+dir*(Math.min(w,6)+0.8),y2-i*h*1.6+(lines.length>1?0:0),l,h,{ha:dir>0?'l':'r',va:'m',L}));}
+  balloon(x,y,x2,y2,m,r=4.2){this.line(x,y,x2-(x2-x)/Math.hypot(x2-x,y2-y)*r,y2-(y2-y)/Math.hypot(x2-x,y2-y)*r,'DIM');this.circ(x2,y2,r,'THIN');this.text(x2,y2,m,2.8,{ha:'c',va:'m'})}
+}
+class View{ // world mm -> paper
+  constructor(sh,ox,oy,s){this.sh=sh;this.ox=ox;this.oy=oy;this.s=s}
+  P(x,y){return[this.ox+x/this.s,this.oy+y/this.s]}
+  line(x1,y1,x2,y2,L){const a=this.P(x1,y1),b=this.P(x2,y2);this.sh.line(a[0],a[1],b[0],b[1],L)}
+  pl(pts,L,c){this.sh.pl(pts.map(p=>this.P(p[0],p[1])),L,c)}
+  rect(x,y,w,h,L){this.pl([[x,y],[x+w,y],[x+w,y+h],[x,y+h]],L,true)}
+  fill(pts,L){this.sh.fill(pts.map(p=>this.P(p[0],p[1])),L)}
+  frect(x,y,w,h,L='SEC'){this.fill([[x,y],[x+w,y],[x+w,y+h],[x,y+h]],L)}
+  circ(x,y,r,L){const a=this.P(x,y);this.sh.circ(a[0],a[1],r/this.s,L)}
+  arc(x,y,r,a1,a2,L){const a=this.P(x,y);this.sh.arc(a[0],a[1],r/this.s,a1,a2,L)}
+  text(x,y,s,h,o){const a=this.P(x,y);this.sh.text(a[0],a[1],s,h,o)}
+  dimH(x1,x2,y,off,txt,o){this.sh.dim(this.P(x1,y),this.P(x2,y),[1,0],off,txt??fmt(Math.abs(x2-x1)),o)}
+  dimV(y1,y2,x,off,txt,o){this.sh.dim(this.P(x,y1),this.P(x,y2),[0,1],-off,txt??fmt(Math.abs(y2-y1)),o)}
+  dimHx(x1,y1,x2,y2,off,txt,o){this.sh.dim(this.P(x1,y1),this.P(x2,y2),[1,0],off,txt??fmt(Math.abs(x2-x1)),o)}
+  dimVx(x1,y1,x2,y2,off,txt,o){this.sh.dim(this.P(x1,y1),this.P(x2,y2),[0,1],-off,txt??fmt(Math.abs(y2-y1)),o)}
+  dimA(x1,y1,x2,y2,off,txt,o){const a=this.P(x1,y1),b=this.P(x2,y2);const L=Math.hypot(b[0]-a[0],b[1]-a[1]);this.sh.dim(a,b,[(b[0]-a[0])/L,(b[1]-a[1])/L],off,txt??fmt(Math.hypot(x2-x1,y2-y1)),o)}
+  leader(x,y,dx,dy,txt,h,L){const a=this.P(x,y);this.sh.leader(a[0],a[1],a[0]+dx,a[1]+dy,txt,h,L)}
+  balloon(x,y,dx,dy,m){const a=this.P(x,y);this.sh.balloon(a[0],a[1],a[0]+dx,a[1]+dy,m)}
+  // plate wall from p1->p2 thickness t on side away from ref point (world)
+  wall(x1,y1,x2,y2,t,rx,ry,L='SEC'){let nx=-(y2-y1),ny=x2-x1;const l=Math.hypot(nx,ny);nx/=l;ny/=l;
+    const mx=(x1+x2)/2,my=(y1+y2)/2; if((rx-mx)*nx+(ry-my)*ny>0){nx=-nx;ny=-ny}
+    this.fill([[x1,y1],[x2,y2],[x2+nx*t,y2+ny*t],[x1+nx*t,y1+ny*t]],L); return [nx,ny];}
+}
+const SCALES=[1,2,2.5,5,10,15,20,25,30,40,50,60,75,100];
+const fitScale=(w,h,W,H)=>SCALES.find(s=>w/s<=W&&h/s<=H)||100;
+
+/* ---------- renderers ---------- */
+function toSVG(sh){
+  const H=sh.h; const o=[];
+  o.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${sh.w} ${sh.h}" width="${sh.w}mm" height="${sh.h}mm" font-family="Arial, Helvetica, sans-serif"><rect width="${sh.w}" height="${sh.h}" fill="#fff"/>`);
+  const st=L=>{const l=LAYERS[L]||LAYERS.OUT;return `stroke="${l.col}" stroke-width="${l.w}"${l.dash?` stroke-dasharray="${l.dash}"`:''}`};
+  const fills=[],lines=[],texts=[];
+  for(const e of sh.e){
+    if(e.t==='f'){const l=LAYERS[e.L]||LAYERS.SEC;fills.push(`<polygon points="${e.pts.map(p=>`${p[0].toFixed(2)},${(H-p[1]).toFixed(2)}`).join(' ')}" fill="${l.fill||l.col}" stroke="${l.col}" stroke-width="0.05"/>`)}
+    else if(e.t==='l') lines.push(`<line x1="${e.x1.toFixed(2)}" y1="${(H-e.y1).toFixed(2)}" x2="${e.x2.toFixed(2)}" y2="${(H-e.y2).toFixed(2)}" ${st(e.L)}/>`);
+    else if(e.t==='c') lines.push(`<circle cx="${e.x.toFixed(2)}" cy="${(H-e.y).toFixed(2)}" r="${e.r.toFixed(2)}" fill="none" ${st(e.L)}/>`);
+    else if(e.t==='a'){const a1=e.a1*Math.PI/180,a2=e.a2*Math.PI/180;let sw=(e.a2-e.a1)%360;if(sw<=0)sw+=360;
+      const p1=[e.x+e.r*Math.cos(a1),H-(e.y+e.r*Math.sin(a1))],p2=[e.x+e.r*Math.cos(a2),H-(e.y+e.r*Math.sin(a2))];
+      lines.push(`<path d="M${p1[0].toFixed(2)} ${p1[1].toFixed(2)} A${e.r.toFixed(2)} ${e.r.toFixed(2)} 0 ${sw>180?1:0} 0 ${p2[0].toFixed(2)} ${p2[1].toFixed(2)}" fill="none" ${st(e.L)}/>`)}
+    else if(e.t==='t'){const l=LAYERS[e.L]||LAYERS.TXT;const anc={l:'start',c:'middle',r:'end'}[e.ha];const db={b:'auto',m:'central',t:'hanging'}[e.va];
+      const s=e.s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      texts.push(`<text x="${e.x.toFixed(2)}" y="${(H-e.y).toFixed(2)}" font-size="${(e.h/0.72).toFixed(2)}" fill="${l.col}" text-anchor="${anc}" dominant-baseline="${db}"${e.rot?` transform="rotate(${(-e.rot).toFixed(2)} ${e.x.toFixed(2)} ${(H-e.y).toFixed(2)})"`:''}>${s}</text>`)}
+  }
+  o.push(fills.join(''),lines.join(''),texts.join(''),'</svg>'); return o.join('');
+}
+function toDXF(sh){
+  const o=[]; const P=(...a)=>o.push(...a.map(String));
+  const ascii=s=>s.replace(/[^\x20-\x7e]/g,c=>({'°':'%%d','Ø':'%%c','±':'%%p','×':'x','–':'-','—':'-','≥':'>=','≤':'<=','→':'->','²':'2','³':'3'}[c]||'?'));
+  P(0,'SECTION',2,'HEADER',9,'$ACADVER',1,'AC1009',9,'$INSUNITS',70,4,9,'$EXTMIN',10,0,20,0,9,'$EXTMAX',10,sh.w,20,sh.h,0,'ENDSEC');
+  P(0,'SECTION',2,'TABLES');
+  P(0,'TABLE',2,'LTYPE',70,3);
+  P(0,'LTYPE',2,'CONTINUOUS',70,0,3,'Solid line',72,65,73,0,40,0);
+  P(0,'LTYPE',2,'DASHED',70,0,3,'Dashed',72,65,73,2,40,3.2,49,2,49,-1.2);
+  P(0,'LTYPE',2,'CENTER',70,0,3,'Center',72,65,73,4,40,11,49,7,49,-1.5,49,1,49,-1.5);
+  P(0,'ENDTAB');
+  const names=Object.keys(LAYERS); P(0,'TABLE',2,'LAYER',70,names.length+1);
+  P(0,'LAYER',2,'0',70,0,62,7,6,'CONTINUOUS');
+  names.forEach(n=>P(0,'LAYER',2,n,70,0,62,LAYERS[n].c,6,LAYERS[n].lt||'CONTINUOUS'));
+  P(0,'ENDTAB');
+  P(0,'TABLE',2,'STYLE',70,1,0,'STYLE',2,'STANDARD',70,0,40,0,41,0.85,50,0,71,0,42,2.5,3,'txt',0,'ENDTAB');
+  P(0,'ENDSEC',0,'SECTION',2,'ENTITIES');
+  const f=v=>(+v).toFixed(3);
+  for(const e of sh.e){
+    if(e.t==='l') P(0,'LINE',8,e.L,10,f(e.x1),20,f(e.y1),30,0,11,f(e.x2),21,f(e.y2),31,0);
+    else if(e.t==='c') P(0,'CIRCLE',8,e.L,10,f(e.x),20,f(e.y),30,0,40,f(e.r));
+    else if(e.t==='a') P(0,'ARC',8,e.L,10,f(e.x),20,f(e.y),30,0,40,f(e.r),50,f(e.a1),51,f(e.a2));
+    else if(e.t==='f'){const p=e.pts; if(p.length<=4){const q=p.length===3?[p[0],p[1],p[2],p[2]]:[p[0],p[1],p[3],p[2]];
+        P(0,'SOLID',8,e.L,10,f(q[0][0]),20,f(q[0][1]),30,0,11,f(q[1][0]),21,f(q[1][1]),31,0,12,f(q[2][0]),22,f(q[2][1]),32,0,13,f(q[3][0]),23,f(q[3][1]),33,0);}
+      else for(let i=0;i<p.length;i++){const a=p[i],b=p[(i+1)%p.length];P(0,'LINE',8,e.L,10,f(a[0]),20,f(a[1]),30,0,11,f(b[0]),21,f(b[1]),31,0)}}
+    else if(e.t==='t'){const ha={l:0,c:1,r:2}[e.ha],va={b:0,m:2,t:3}[e.va];
+      P(0,'TEXT',8,e.L,10,f(e.x),20,f(e.y),30,0,40,f(e.h),1,ascii(e.s));
+      if(e.rot)P(50,f(e.rot)); P(7,'STANDARD');
+      if(ha||va)P(72,ha,11,f(e.x),21,f(e.y),31,0,73,va); else P(73,0);}
+  }
+  P(0,'ENDSEC',0,'EOF'); return o.join('\r\n');
+}
+
+/* ---------- common sheet furniture ---------- */
+function frame(sh,r,title,no,scaleTxt){
+  const p=r.p; sh.rect(5,5,sh.w-10,sh.h-10,'BRD'); sh.rect(20,10,sh.w-30,sh.h-20,'BRD');
+  const x0=sh.w-190,y0=10,w=180; // title block
+  sh.rect(x0,y0,w,58,'BRD');
+  [14,22,30,38,46].forEach(y=>sh.line(x0,y0+y,x0+w,y0+y,'THIN'));
+  sh.line(x0+90,y0,x0+90,y0+22,'THIN');sh.line(x0+135,y0,x0+135,y0+22,'THIN');
+  sh.text(x0+3,y0+52,'SURIN SUGAR CO., LTD.',4,{va:'m'});
+  sh.text(x0+3,y0+42,(p.prj||'').toUpperCase(),2.8,{va:'m'});
+  sh.text(x0+3,y0+34,`DIRECT CONTACT HEATER  ${p.tag||''}`,2.8,{va:'m'});
+  sh.text(x0+3,y0+26,title,3.2,{va:'m'});
+  sh.text(x0+3,y0+18,`DWG No. ${p.dwg}-${no}`,2.8,{va:'m'}); sh.text(x0+93,y0+18,`REV. ${p.rev}`,2.8,{va:'m'}); sh.text(x0+138,y0+18,`SHEET ${no.slice(-1)}/3`,2.8,{va:'m'});
+  sh.text(x0+3,y0+10,`SCALE ${scaleTxt}`,2.5,{va:'m'}); sh.text(x0+93,y0+10,`DRAWN ${p.by||''}`,2.5,{va:'m'}); sh.text(x0+138,y0+10,new Date().toISOString().slice(0,10),2.5,{va:'m'});
+  sh.text(x0+3,y0+4,`STATUS: ${p.status||''}   ·   UNITS: mm   ·   A2 594×420`,2.2,{va:'m'});
+  sh.text(x0+93,y0+4,'',2);
+}
+function table(sh,x,yTop,cols,rows,h=2.2,rh=4.6,title){
+  let y=yTop; if(title){sh.text(x,y+1.5,title,3);}
+  const W=cols.reduce((a,c)=>a+c[1],0); const n=rows.length+1;
+  sh.rect(x,y-n*rh,W,n*rh,'THIN');
+  for(let i=1;i<n;i++) sh.line(x,y-i*rh,x+W,y-i*rh,'THIN');
+  let cx=x; cols.forEach((c,j)=>{ if(j) sh.line(cx,y,cx,y-n*rh,'THIN'); sh.text(cx+1,y-rh/2,c[0],h,{va:'m'});
+    rows.forEach((rw,i)=>{const v=String(rw[j]??''); const right=c[2]==='r'; sh.text(right?cx+c[1]-1:cx+1,y-(i+1.5)*rh,v,h,{va:'m',ha:right?'r':'l'})}); cx+=c[1];});
+  return y-n*rh;
+}
+
+/* ===== Drawing sheets ===== */
+View.prototype.dV=function(x1,z1,x2,z2,X,txt,o){const a=this.P(x1,z1),b=this.P(x2,z2),Xp=this.P(X,0)[0];this.sh.dim(a,b,[0,1],a[0]-Xp,txt??fmt(Math.abs(z2-z1)),o)};
+View.prototype.dH=function(x1,z1,x2,z2,Z,txt,o){const a=this.P(x1,z1),b=this.P(x2,z2),Zp=this.P(0,Z)[1];this.sh.dim(a,b,[1,0],Zp-a[1],txt??fmt(Math.abs(x2-x1)),o)};
+const X2=(side,a,b)=>side>0?a:-b; // left edge of interval a..b on side
+
+function drawSideNozzle(v,n,side,R,t,o={}){
+  const pp=n.pp,f=n.f,zc=n.z,OD=pp.OD,w=pp.w,Rf=n.R,xb=Rf-f.t,xa=o.inner??R;
+  v.frect(X2(side,xa,xb),zc+OD/2-w,xb-xa,w); v.frect(X2(side,xa,xb),zc-OD/2,xb-xa,w);
+  v.frect(X2(side,xb,Rf),zc+pp.ID/2,f.t,f.OD/2-pp.ID/2); v.frect(X2(side,xb,Rf),zc-f.OD/2,f.t,f.OD/2-pp.ID/2);
+  if(n.mh){const ct=Math.max(16,Math.round(f.t*0.6));v.frect(X2(side,Rf,Rf+ct),zc-f.OD/2,ct,f.OD);}
+  if(n.pad){v.frect(X2(side,R+t,R+2*t),zc+OD/2,t,OD/2);v.frect(X2(side,R+t,R+2*t),zc-OD,t,OD/2);}
+  if(o.cl!==false) v.line(side*(xa-40),zc,side*(Rf+60),zc,'CEN');
+}
+function drawLugSide(v,side,Ro,z,L,tp){
+  const x0=Ro+tp; v.rect(X2(side,Ro,x0),z-60,tp,L.tb+L.hg+120,'OUT');
+  v.frect(X2(side,x0,x0+L.b),z,L.b,L.tb,'SEC');
+  v.pl([[side*x0,z+L.tb],[side*(x0+L.b-15),z+L.tb],[side*(x0+L.b-15),z+L.tb+25],[side*x0,z+L.tb+L.hg]],'OUT',true);
+  const hx=x0+L.b-L.b*0.4; v.line(side*(hx-L.hole/2),z-10,side*(hx-L.hole/2),z+L.tb+10,'HID');v.line(side*(hx+L.hole/2),z-10,side*(hx+L.hole/2),z+L.tb+10,'HID');
+  v.line(side*hx,z-30,side*hx,z+L.tb+30,'CEN');
+}
+function detailFlag(v,x,z,rWorld,letter,dx=1){const a=v.P(x,z);const rr=Math.max(8,rWorld/v.s);v.sh.circ(a[0],a[1],rr,'HID');
+  const bx=a[0]+dx*(rr*0.75+4)-(dx<0?7:0),by=a[1]+rr*0.75+4;v.sh.line(a[0]+dx*rr*0.7,a[1]+rr*0.7,bx+(dx<0?7:0),by,'DIM');v.sh.circ(bx+3.5,by+3.5,4.5,'THIN');v.sh.text(bx+3.5,by+4.6,letter,2.8,{ha:'c',va:'m'});v.sh.line(bx-1,by+3.5,bx+8,by+3.5,'THIN');v.sh.text(bx+3.5,by+1.6,'2',2,{ha:'c',va:'m'});}
+
+/* ---------------- SHEET 1 : GA ---------------- */
+function sheetGA(r){
+  const sh=new Sheet(594,420),g=r.g,p=r.p,W=r.weights,R=g.Ds/2,t=p.ts,Ro=g.Ro,L=r.lug;
+  const side=g.noz.filter(n=>n.typ==='side');
+  const xR=Math.max(Ro+p.lp+60,Ro+t+L.b+60), zMin=-g.Hcone-p.lp-60, zMax=g.zTop+p.lp+80;
+  const s=fitScale(2*xR,zMax-zMin,180,360);
+  const ox=22+112, oy=18+(380-(zMax-zMin)/s)/2-zMin/s;
+  const v=new View(sh,ox,oy,s);
+  frame(sh,r,'GENERAL ARRANGEMENT','001',`1:${s} (ELEV.)`);
+  v.line(0,zMin,0,zMax,'CEN');
+  for(const sd of [1,-1]){
+    const gaps=side.filter(n=>n.side===sd).map(n=>[n.z-n.pp.OD/2,n.z+n.pp.OD/2]).sort((a,b)=>a[0]-b[0]);
+    let z0=0; for(const [a,b] of gaps){ if(a>z0) v.frect(X2(sd,R,Ro),z0,t,Math.min(a,g.TTL)-z0); z0=Math.max(z0,b);} if(z0<g.TTL) v.frect(X2(sd,R,Ro),z0,t,g.TTL-z0);
+    v.wall(sd*R,0,sd*g.n3.OD/2,-g.Hcone,p.tc,0,-g.Hcone*0.4);
+    v.wall(sd*R,g.TTL,sd*g.n4.OD/2,g.zTop,p.tt,0,g.TTL);
+    for(const st of g.sets){
+      v.wall(sd*R,st.zFt,sd*g.Dbb/2,st.zFh,p.tb,sd*(R+g.Dbb/2)/2,st.zFt+300);
+      v.wall(0,st.zUa,sd*g.Dtb/2,st.zUr,p.tb,sd*g.Dtb/4,st.zUa+300);
+      const xb=g.Dtb/2-150, zu=st.zUa-Math.tan(rad(g.bTop))*xb-p.tb/Math.cos(rad(g.bTop));
+      v.rect(X2(sd,xb,R),zu-75,R-xb,75,'THIN');
+    }
+    v.frect(X2(sd,g.Dbb/2,g.Dbb/2+p.tr),0,p.tr,g.Hann);
+    v.rect(X2(sd,g.Dbb/2+p.tr,R),g.Hann-75,R-g.Dbb/2-p.tr,75,'THIN');
+    drawLugSide(v,sd,Ro,p.zlug,L,L.pad);
+    // lifting lug near TTL
+    v.pl([[sd*Ro,g.TTL-350],[sd*(Ro+180),g.TTL-350],[sd*(Ro+180),g.TTL-150],[sd*(Ro+90),g.TTL-60],[sd*Ro,g.TTL-60]],'OUT',true); v.circ(sd*(Ro+100),g.TTL-180,20,'THIN');
+  }
+  side.forEach(n=>drawSideNozzle(v,n,n.side,R,t));
+  // juice inlet splash plate
+  const n2=g.noz[1]; v.frect(X2(n2.side,R-170,R-160),n2.z-n2.pp.OD/2-120,10,n2.pp.OD+170);
+  // bottom & top nozzles
+  const n3=g.noz[2],n4=g.noz[3];
+  for(const [n,dir] of [[n3,-1],[n4,1]]){const pp=n.pp,f=n.f,z0=dir<0?-g.Hcone:g.zTop,zf=n.R,zb=zf-dir*f.t;
+    for(const sd of [1,-1]){v.frect(X2(sd,pp.ID/2,pp.OD/2),Math.min(z0,zb),pp.w,Math.abs(zb-z0));v.frect(X2(sd,pp.ID/2,f.OD/2),Math.min(zb,zf),f.OD/2-pp.ID/2,f.t);}}
+  // labels
+  g.noz.forEach(n=>{let a,dx,dy; if(n.typ==='side'){a=[n.side*n.R,n.z+n.f.OD/2];dx=n.side*6;dy=8;} else if(n.typ==='top'){a=[n.f.OD/2,n.R];dx=8;dy=6;} else {a=[n.f.OD/2,n.R];dx=8;dy=-6;}
+    v.balloon(a[0],a[1],dx,dy,n.m);});
+  // flow labels
+  const lab=(n,txt)=>{const P=n.typ==='side'?[n.side*(n.R+40),n.z]:[0,n.R+(n.typ==='top'?40:-40)];const pp=v.P(...P);
+    if(n.typ==='side') sh.text(pp[0]+n.side*2,pp[1]-2,txt,2.2,{ha:n.side>0?'l':'r',va:'t',L:'NOTE'}); else sh.text(pp[0]+12,pp[1],txt,2.2,{va:'m',L:'NOTE'});};
+  lab(g.noz[0],'VAPOUR IN'); lab(n2,'JUICE IN'); lab(n3,'JUICE OUT'); lab(n4,'NCG');
+  // tangent lines
+  for(const [z,tx] of [[0,'BTL ±0'],[g.TTL,`TTL +${fmt(g.TTL)}`]]){v.line(-Ro-40,z,-Ro-420,z,'THIN');v.text(-Ro-420,z+30,tx,2.2,{});}
+  // dims right chain
+  const Xc=v.P(xR,0)[0]+4, Xo=Xc+12;
+  const chain=[[n4.f.OD/2,n4.R],[n4.pp.OD/2,g.zTop],[Ro,g.TTL],[Ro,g.zN2t],[Ro,g.zN2t-n2.pp.OD],[Ro,g.zSets],[Ro,g.sets[0].zUr],[Ro,g.Hann],[Ro,0],[n3.pp.OD/2,-g.Hcone],[n3.f.OD/2,n3.R]];
+  for(let i=0;i<chain.length-1;i++){const a=v.P(...chain[i+1]),b=v.P(...chain[i]);
+    let txt=fmt(chain[i][1]-chain[i+1][1]); if(i===5) txt=`${p.nset}×${fmt(g.pitch)}=${fmt(g.zSets-g.sets[0].zUr)}`;
+    sh.dim(a,b,[0,1],a[0]-Xc,txt,{h:2.2});}
+  { const a=v.P(...chain.at(-1)),b=v.P(...chain[0]); sh.dim(a,b,[0,1],a[0]-Xo,`OVERALL ${fmt(n4.R-n3.R)}`,{h:2.4}); }
+  // horizontal dims
+  v.dH(-R,g.TTL-250,R,g.TTL-250,g.TTL-250,`ID ${fmt(g.Ds)}`,{noext:true,inside:true});
+  const top=g.sets.at(-1);
+  v.dH(-g.Dtb/2,top.zUr,g.Dtb/2,top.zUr,top.zUr-110,`Ø${fmt(g.Dtb)}`,{h:2.2});
+  v.dH(-g.Dbb/2,top.zFh,g.Dbb/2,top.zFh,top.zFh+110,`Ø${fmt(g.Dbb)}`,{h:2.2});
+  for(const n of [g.noz[0],n2]) v.dH(0,n.z,n.side*n.R,n.z,n.z-n.f.OD/2-90,fmt(n.R),{h:2.2});
+  // angle notes
+  const st=g.sets[Math.floor(g.sets.length/2)];
+  v.leader(g.Dtb*0.18,st.zUa-Math.tan(rad(g.bTop))*g.Dtb*0.18,-14,-6,`TOP BAFFLE ${p.atop}° INCL. t${p.tb}`,2.2);
+  v.leader(-(R+g.Dbb/2)/2,(st.zFt+st.zFh)/2,-22,8,`BOTTOM BAFFLE ${p.abot}° INCL. t${p.tb}`,2.2);
+  v.line(R,0,R-350,0,'THIN'); v.arc(R,0,260,180,180+p.acone,'DIM'); { const a=v.P(R-300*Math.cos(rad(p.acone/2)),-300*Math.sin(rad(p.acone/2))); sh.text(a[0]-1,a[1],`${p.acone}°`,2.2,{ha:'r',va:'m'}); }
+  v.leader(-g.Dbb/2-p.tr,g.Hann*0.7,-8,-8,`ANNULUS RING Ø${g.Dbb} t${p.tr}`,2.2);
+  // detail flags
+  const sm=g.sets[0];
+  detailFlag(v,R*0.6,(sm.zUr+g.sets[Math.min(1,g.sets.length-1)].zUa)/2,Math.max(R*0.7,350),'A');
+  detailFlag(v,g.noz[0].side*(R+60),g.noz[0].z,g.noz[0].pp.OD*0.7,'B',-g.noz[0].side);
+  detailFlag(v,R*0.55,-g.Hcone*0.5,g.Hcone*0.55,'C');
+  detailFlag(v,n2.side*(R+t),n2.z+n2.pp.OD/2,n2.pp.OD*0.6,'D');
+  detailFlag(v,R*0.6,g.TTL+g.Htc*0.5,Math.max(g.Htc,250),'E');
+  detailFlag(v,-(Ro+L.b/2),p.zlug+L.hg/2,L.hg*0.8,'F');
+  sh.text(ox,8+10,'ELEVATION – SECTION (NOZZLES ROTATED INTO VIEW)',3,{ha:'c'});
+  sh.text(ox,8+5.5,`SCALE 1:${s}`,2.4,{ha:'c'});
+  // ---------- plan view
+  const Rmax=Math.max(...side.map(n=>n.R+60),Ro+L.b+40), sp=fitScale(2*Rmax,2*Rmax,150,140), cx=350, cy=330;
+  const pv=new View(sh,cx,cy,sp);
+  const dir=a=>[Math.sin(rad(a)),Math.cos(rad(a))];
+  pv.circ(0,0,R,'OUT');pv.circ(0,0,Ro,'OUT');pv.circ(0,0,g.Dtb/2,'HID');pv.circ(0,0,g.Dbb/2,'HID');
+  pv.circ(0,0,n4.pp.OD/2,'OUT');pv.circ(0,0,n4.f.OD/2,'OUT');pv.circ(0,0,n3.f.OD/2,'HID');
+  pv.line(-Rmax,0,Rmax,0,'CEN');pv.line(0,-Rmax,0,Rmax,'CEN');
+  [[0,'0°'],[90,'90°'],[180,'180°'],[270,'270°']].forEach(([a,tx])=>{const d=dir(a+7);const q=pv.P(d[0]*R*0.82,d[1]*R*0.82);sh.text(q[0],q[1],tx,2.2,{ha:'c',va:'m',L:'CEN'})});
+  const rr=(r1,r2,hw,a)=>{const d=dir(a),n=[d[1],-d[0]];return [[d[0]*r1+n[0]*hw,d[1]*r1+n[1]*hw],[d[0]*r2+n[0]*hw,d[1]*r2+n[1]*hw],[d[0]*r2-n[0]*hw,d[1]*r2-n[1]*hw],[d[0]*r1-n[0]*hw,d[1]*r1-n[1]*hw]]};
+  side.forEach(n=>{pv.pl(rr(Ro,n.R-n.f.t,n.pp.OD/2,n.o),'OUT',true);pv.pl(rr(n.R-n.f.t,n.R,n.f.OD/2,n.o),'OUT',true);
+    const d=dir(n.o),q=pv.P(d[0]*n.R,d[1]*n.R);sh.balloon(q[0],q[1],q[0]+d[0]*11,q[1]+d[1]*11,n.m);
+    sh.text(q[0]+d[0]*11+(d[0]>=0?5.5:-5.5),q[1]+d[1]*11-4.5,`${n.o}°`,2,{ha:d[0]>=0?'l':'r',va:'m'});});
+  for(let i=0;i<p.nlug;i++){const a=p.olug+i*360/p.nlug;pv.pl(rr(Ro,Ro+L.b,L.d/2,a),'OUT',true);const d=dir(a);pv.circ(d[0]*(Ro+L.b*0.6),d[1]*(Ro+L.b*0.6),L.hole/2,'THIN');}
+  {const q=pv.P(0,0);sh.text(q[0]+5,q[1]-5,'N4',2.2,{});}
+  const na=[cx+Rmax/sp-4,cy+Rmax/sp-12]; sh.line(na[0],na[1],na[0],na[1]+12,'OUT');sh.arrow(na[0],na[1]+12,0,1,'OUT',4,1.6);sh.text(na[0],na[1]+15,'PLANT N',2.2,{ha:'c'});
+  sh.text(cx,cy-Rmax/sp-24,`PLAN – NOZZLE ORIENTATION  1:${sp}`,3,{ha:'c'});
+  // ---------- nozzle schedule
+  const rows=g.noz.map(n=>[n.m,n.sv,`${n.pp.nps}"`,n.mh?'CL150 + COVER':'CL150 SO RF',n.calc?fmt(n.calc):'-',n.v?fmt(n.v,1):'-',n.typ==='side'?`${n.o}°`:(n.typ==='top'?'TOP':'BTM'),n.typ==='side'?`+${fmt(n.z)}`:fmt(n.typ==='top'?g.zTop:-g.Hcone),fmt(Math.abs(n.R))]);
+  let yb=table(sh,268,236,[['MARK',11],['SERVICE',30],['SIZE',11],['RATING',27],['CALC ID',15,'r'],['V m/s',13,'r'],['ORIENT',14,'r'],['EL. BTL',17,'r'],['C/L-FACE',18,'r']],rows,2.1,4.4,'NOZZLE SCHEDULE');
+  // ---------- notes
+  const notes=['NOTES','1. ALL DIMENSIONS IN mm. ELEVATIONS REFERRED TO BTL (CONE/SHELL JUNCTION).','2. NOZZLES ROTATED INTO VIEW; SEE PLAN FOR TRUE ORIENTATION.',
+   '3. FLANGES ASME B16.5 / B16.47-B CL.150 SO-RF (OR JIS 10K) - CONFIRM WITH PIPING.','4. SHELL & CONE SEAMS FULL PENETRATION BUTT WELD, SPOT RT.',
+   `5. INTERNALS: 6 mm CONT. FILLET BOTH SIDES UNLESS NOTED.`,'6. PADS WITH M10 TELLTALE HOLE, AIR TEST 1 bar g.',
+   `7. BAFFLES: TOP ${p.atop}° / BOTTOM ${p.abot}° INCL., GAPS ${p.g1} / ${p.g2} mm ±3.`,'8. SHELL OUT-OF-ROUNDNESS ≤ 1% ID. BAFFLES LEVEL ±3 mm.',
+   '9. OUTSIDE: BLAST SA2.5 + HEAT RESIST. PRIMER (CS). INSIDE BARE.',`10. WEIGHTS ESTIMATED, INCL. ${p.cont}% WELD/MISC.`,
+   '11. PRELIMINARY: VERIFY PRESSURE PARTS TO ASME VIII DIV.1 BEFORE FAB.','12. DESIGN METHOD: SUGARPROCESSTECH.COM DCH DESIGN.'];
+  notes.forEach((l,i)=>sh.text(268,yb-8-i*4.1,l,i?2.1:2.8,{}));
+  // ---------- design data + weights
+  const dt=Math.ceil((r.s.T+15)/10)*10;
+  const dd=[['JUICE FLOW',`${fmt(p.qj)} t/h  (Bx ${p.bx})`],['JUICE TEMP IN / OUT',`${p.tin} / ${p.tout} °C`],['HEATING VAPOUR',`${fmt(r.s.P,3)} bar a / ${fmt(r.s.T,1)} °C`],
+   ['VAPOUR CONSUMPTION',`${fmt(r.flow.mv*3.6,2)} t/h`],['HEAT DUTY',`${fmt(r.flow.Q)} kW`],['DESIGN PRESSURE',`${p.pd} bar g${+p.fv?' / FULL VAC.':''}`],['DESIGN TEMP.',`${dt} °C`],
+   ['MATERIAL',r.M.name],['CORR. ALLOWANCE',`${p.ca} mm`],['SHELL',`ID ${g.Ds} × t${p.ts}`],['CONES BTM / TOP',`t${p.tc} / t${p.tt}`],['BAFFLES',`${p.nset} SETS t${p.tb}`],
+   ['CAPACITY',`${fmt(W.Vtot,2)} m³`],['EMPTY WEIGHT',`${fmt(W.empty)} kg`],['OPERATING WEIGHT',`${fmt(W.oper)} kg`],['HYDROTEST WEIGHT',`${fmt(W.hydro)} kg`],['CODE (REF.)','ASME VIII DIV.1']];
+  yb=table(sh,437,408,[['DESIGN DATA',58],['',89]],dd,2.1,4.4);
+  const grp={};W.items.forEach(i=>grp[i.grp]=(grp[i.grp]||0)+i.tot);
+  const wr=Object.entries(grp).map(([k,v])=>[k.toUpperCase(),fmt(v)]); wr.push([`WELD / MISC ${p.cont}%`,fmt(W.cont)],['TOTAL EMPTY',fmt(W.empty)]);
+  table(sh,437,yb-10,[['WEIGHT SUMMARY',95],['kg',52,'r']],wr,2.1,4.4);
+  return sh;
+}
+
+/* ---------------- SHEET 2 : DETAILS ---------------- */
+function placeDetail(sh,cell,letter,title,bb,draw){
+  const [cx,cy,cw,chh]=cell; const w=bb[2]-bb[0],h=bb[3]-bb[1]; const s=fitScale(w,h,cw-34,chh-26);
+  const ox=cx+(cw-w/s)/2-bb[0]/s, oy=cy+18+(chh-24-h/s)/2-bb[1]/s; const v=new View(sh,ox,oy,s);
+  draw(v,s); sh.circ(cx+10,cy+8,6,'OUT'); sh.text(cx+10,cy+8,letter,4,{ha:'c',va:'m'});
+  sh.text(cx+19,cy+10,`DETAIL ${letter} – ${title}`,3,{va:'m'}); sh.text(cx+19,cy+4.5,`SCALE 1:${s}`,2.4,{va:'m'});
+  sh.rect(cx,cy,cw,chh,'THIN');
+}
+function sheetDetails(r){
+  const sh=new Sheet(594,420),g=r.g,p=r.p,R=g.Ds/2,t=p.ts,Ro=g.Ro,L=r.lug; frame(sh,r,'DETAILS','002','AS SHOWN');
+  const cells=[[22,214,186,194],[210,214,186,194],[398,214,186,194],[22,72,186,140],[210,72,186,140],[398,72,186,140]];
+  const tA=Math.tan(rad(g.bTop)),tB=Math.tan(rad(g.bBot));
+  // A baffle set
+  const s0=g.sets[0],s1=g.sets[Math.min(1,g.sets.length-1)];
+  placeDetail(sh,cells[0],'A','BAFFLE SET',[-150,s0.zUr-200,Ro+330,s1.zUa+80],(v)=>{
+    v.line(0,s0.zUr-200,0,s1.zUa+80,'CEN'); v.frect(R,s0.zUr-180,t,s1.zUa+60-(s0.zUr-180));
+    v.line(R-40,s0.zUr-180,Ro+40,s0.zUr-180,'THIN');v.line(R-40,s1.zUa+60,Ro+40,s1.zUa+60,'THIN');
+    for(const st of [s0,s1]){v.wall(0,st.zUa,g.Dtb/2,st.zUr,p.tb,g.Dtb/4,st.zUa+300);
+      const xb=g.Dtb/2-150, zu=st.zUa-tA*xb-p.tb/Math.cos(rad(g.bTop)); v.rect(xb,zu-75,R-xb,75,'THIN');}
+    v.wall(R,s0.zFt,g.Dbb/2,s0.zFh,p.tb,(R+g.Dbb/2)/2,s0.zFt+300);
+    v.dV(0,s0.zUa,g.Dbb/2,s0.zFh,-60,`G2=${p.g2}`,{h:2.2});
+    v.dV(R,s0.zFt,g.Dtb/2,s1.zUr,R+t+90,`G1=${p.g1}`,{h:2.2});
+    v.dV(R,s0.zFt,g.Dbb/2,s0.zFh,R+t+200,fmt(g.Hbb),{h:2.2});
+    v.dV(0,s0.zUa,g.Dtb/2,s0.zUr,R+t+90,fmt(g.Htb),{h:2.2});
+    v.dH(0,s0.zFh,g.Dbb/2,s0.zFh,s0.zFh+70,`R${fmt(g.Dbb/2)}`,{h:2.2});
+    v.dH(0,s0.zUr,g.Dtb/2,s0.zUr,s0.zUr-120,`R${fmt(g.Dtb/2)}`,{h:2.2});
+    v.dH(g.Dtb/2,s1.zUr,R,s1.zUr,s1.zUr+60,fmt(R-g.Dtb/2),{h:2.2});
+    v.line(0,s0.zUa,260,s0.zUa,'THIN'); v.arc(0,s0.zUa,200,-g.bTop,0,'DIM'); {const a=v.P(215,s0.zUa-30);v.sh.text(a[0]+1.5,a[1],`${fmt(g.bTop,1)}°`,2.2,{va:'m'});}
+    v.line(g.Dbb/2,s0.zFh,g.Dbb/2+220,s0.zFh,'THIN'); v.arc(g.Dbb/2,s0.zFh,180,0,g.bBot,'DIM'); {const a=v.P(g.Dbb/2+200,s0.zFh+50);v.sh.text(a[0]+1,a[1],`${fmt(g.bBot,1)}°`,2.2,{va:'m'});}
+    v.leader(R,s0.zFt-10,10,-14,'6 FW CONT.\nBOTH SIDES',2);
+    v.leader((R+g.Dbb/2)/2,s0.zFt-tB*(R-(R+g.Dbb/2)/2)-p.tb,14,-26,`BOTTOM BAFFLE PL t${p.tb}\n${p.abot}° INCL.`,2);
+    v.leader(g.Dtb*0.3,s1.zUa-tA*g.Dtb*0.3,-10,12,`TOP BAFFLE PL t${p.tb}\n${p.atop}° INCL.`,2);
+    v.leader(g.Dtb/2-60,s0.zUa-tA*(g.Dtb/2-60)-p.tb-80,-6,-14,'FB 75×10 BRACKET\n3 NOS @120°',2);
+    // flow arrows
+    const ar=(pts,L)=>{v.pl(pts,L);const a=v.P(...pts.at(-2)),b=v.P(...pts.at(-1));const d=Math.hypot(b[0]-a[0],b[1]-a[1]);v.sh.arrow(b[0],b[1],(b[0]-a[0])/d,(b[1]-a[1])/d,L,2.4,0.9)};
+    ar([[g.Dbb/2-20,s0.zFh-10],[g.Dbb/2-40,s0.zUa-tA*(g.Dbb/2-40)+30]],'FLOW');
+    ar([[g.Dtb/2+15,s1.zUr-10],[g.Dtb/2+35,s0.zFt-tB*(R-g.Dtb/2-35)+20]],'FLOW');
+    ar([[R-35,s0.zUr-120],[R-35,s0.zFt-tB*35-30]],'VAP');
+    ar([[g.Dbb/4,s0.zFh-30],[g.Dbb/4,s0.zFt+40]],'VAP');
+    const q=v.P(Ro+300,s0.zUr-150); v.sh.line(q[0]-14,q[1],q[0]-6,q[1],'FLOW');v.sh.text(q[0]-5,q[1],'JUICE',2,{va:'m'});v.sh.line(q[0]-14,q[1]-4,q[0]-6,q[1]-4,'VAP');v.sh.text(q[0]-5,q[1]-4,'VAPOUR',2,{va:'m'});
+  });
+  // B vapour inlet & annulus
+  const n1=g.noz[0]; const zt=g.Hann+p.hta+120;
+  placeDetail(sh,cells[1],'B','VAPOUR INLET & ANNULUS',[g.Dbb/2-220,-260,n1.R+120,zt+40],(v)=>{
+    const x0=g.Dbb/2-200; const lo=n1.z-n1.pp.OD/2,hi=n1.z+n1.pp.OD/2;
+    v.frect(R,0,t,lo);v.frect(R,hi,t,zt-hi); v.line(R-40,zt,Ro+40,zt,'THIN');
+    v.wall(R,0,R-240/Math.tan(rad(p.acone)),-240,p.tc,0,-240*2); v.line(x0,0,R,0,'THIN');
+    drawSideNozzle(v,{...n1,z:n1.z},1,R,t,{});
+    v.frect(g.Dbb/2,0,p.tr,g.Hann); v.rect(g.Dbb/2+p.tr,g.Hann-75,R-g.Dbb/2-p.tr,75,'THIN');
+    const st=g.sets[0]; v.wall(x0,st.zUa-tA*x0,g.Dtb/2,st.zUr,p.tb,x0,st.zUa+300);
+    v.dV(R,0,R,g.Hann,R-100,fmt(g.Hann),{h:2.2}); v.dV(g.Dbb/2,g.Hann,g.Dtb/2,st.zUr,g.Dbb/2-80,fmt(p.hta),{h:2.2});
+    v.dV(R,0,R,n1.z,R-220,undefined,{h:2.2});
+    v.dH(g.Dbb/2+p.tr,g.Hann,R,g.Hann,g.Hann+90,fmt(R-g.Dbb/2-p.tr),{h:2.2});
+    v.dH(Ro,n1.z,n1.R,n1.z,n1.z-n1.f.OD/2-80,fmt(n1.R-Ro),{h:2.2});
+    v.leader(R+t*1.5,hi+n1.pp.OD*0.3,8,8,`PAD PL t${t} OD ${fmt(2*n1.pp.OD)}\nM10 TELLTALE`,2);
+    v.leader(g.Dbb/2,g.Hann*0.4,-10,-10,`ANNULUS RING PL t${p.tr}`,2);
+    v.leader(n1.R-60,n1.z+n1.pp.OD/2,4,14,`N1 ${n1.pp.nps}" VAPOUR INLET`,2);
+    {const a=v.P(x0,0);v.sh.text(a[0],a[1]+1,'BTL ±0',2.2,{});}
+  });
+  // C bottom cone & outlet
+  const n3=g.noz[2];
+  placeDetail(sh,cells[2],'C','BOTTOM CONE & OUTLET',[-n3.f.OD/2-80,n3.R-60,Ro+120,260],(v)=>{
+    v.line(0,n3.R-60,0,260,'CEN'); v.frect(R,0,t,240); v.line(R-40,240,Ro+40,240,'THIN');
+    for(const sd of [1,-1]){ if(sd>0) v.wall(R,0,n3.pp.OD/2,-g.Hcone,p.tc,0,-g.Hcone*0.4);
+      v.frect(X2(sd,n3.pp.ID/2,n3.pp.OD/2),n3.R+n3.f.t,n3.pp.w,-g.Hcone-n3.R-n3.f.t); v.frect(X2(sd,n3.pp.ID/2,n3.f.OD/2),n3.R,n3.f.OD/2-n3.pp.ID/2,n3.f.t);}
+    v.line(R,0,R-400,0,'THIN'); v.arc(R,0,300,180,180+p.acone,'DIM'); {const a=v.P(R-360*Math.cos(rad(p.acone/2)),-360*Math.sin(rad(p.acone/2)));v.sh.text(a[0],a[1],`${p.acone}°`,2.2,{ha:'r',va:'m'});}
+    v.dV(R,0,n3.pp.OD/2,-g.Hcone,Ro+80,fmt(g.Hcone),{h:2.2}); v.dV(n3.pp.OD/2,-g.Hcone,n3.f.OD/2,n3.R,Ro+80,fmt(p.lp),{h:2.2});
+    v.dH(-n3.pp.ID/2,n3.R,n3.pp.ID/2,n3.R,n3.R-40,`ID ${fmt(n3.pp.ID)}`,{h:2.2});
+    v.dH(0,120,R,120,120,`R${fmt(R)}`,{h:2.2,noext:true});
+    v.leader(R+t/2,0,8,8,'FULL PEN. BUTT WELD\nBACKGOUGE',2);
+    v.leader((R+n3.pp.OD/2)/2+20,-g.Hcone/2,10,-6,`BOTTOM CONE PL t${p.tc}`,2);
+    v.leader(n3.pp.OD/2,-g.Hcone-40,10,-8,`N3 ${n3.pp.nps}" JUICE OUTLET\nTO BAROMETRIC LEG / PUMP`,2);
+  });
+  // D nozzle reinforcement (zoom, local coords)
+  const n2=g.noz[1],pp=n2.pp; const leg=Math.min(t,pp.w,10);
+  placeDetail(sh,cells[3],'D','NOZZLE REINFORCEMENT (TYP.)',[-60,pp.OD/2-50,2*t+110,pp.OD+50],(v)=>{
+    v.frect(-t,pp.OD/2,t,pp.OD/2+40); v.frect(0,pp.OD/2,t,pp.OD/2); v.frect(-t-5,pp.OD/2-pp.w,2*t+100,pp.w);
+    v.line(-t,pp.OD+40,0,pp.OD+40,'THIN'); v.line(-t-5,pp.OD/2-pp.w-3,-t-5,pp.OD/2+3,'THIN');
+    v.fill([[t,pp.OD/2],[t+leg,pp.OD/2],[t,pp.OD/2+leg]]); v.fill([[t,pp.OD],[t+leg,pp.OD],[t,pp.OD-leg]]);
+    v.fill([[-t,pp.OD/2],[-t-leg*0.8,pp.OD/2],[-t,pp.OD/2+leg*0.8]]);
+    v.line(0,pp.OD*0.75-3,t,pp.OD*0.75-3,'HID');v.line(0,pp.OD*0.75+3,t,pp.OD*0.75+3,'HID');
+    v.dH(-t,pp.OD+40,0,pp.OD+40,pp.OD+48,`t${t}`,{h:2}); v.dH(0,pp.OD,t,pp.OD,pp.OD+20,`t${t}`,{h:2});
+    v.dV(t,pp.OD/2,t,pp.OD,t+45,`${fmt(pp.OD/2)}`,{h:2});
+    v.leader(t+leg/2,pp.OD/2+leg/3,10,-10,`FW ${fmt(leg)} (PIPE–PAD)`,2); v.leader(t+leg/2,pp.OD-leg/3,10,6,`FW ${Math.min(t,10)} PAD PERIMETER`,2);
+    v.leader(-t-leg/3,pp.OD/2+leg/4,-6,-12,'FULL PEN. INSIDE,\nGRIND FLUSH',2); v.leader(t/2,pp.OD*0.75,-12,10,'M10 TELLTALE',2);
+    v.leader(70,pp.OD/2-pp.w/2,4,-20,`PIPE ${pp.nps}" t${pp.w}`,2);
+    {const a=v.P(-t/2,pp.OD/2+20);v.sh.text(a[0],a[1],'SHELL',2,{ha:'c',rot:90,va:'m'});}
+  });
+  // E top cone & NCG
+  const n4=g.noz[3];
+  placeDetail(sh,cells[4],'E','TOP CONE & NCG VENT',[-n4.f.OD/2-60,g.TTL-260,Ro+260,n4.R+60],(v)=>{
+    v.line(0,g.TTL-260,0,n4.R+60,'CEN'); v.frect(R,g.TTL-240,t,240); v.line(R-40,g.TTL-240,Ro+40,g.TTL-240,'THIN');
+    v.wall(R,g.TTL,n4.pp.OD/2,g.zTop,p.tt,0,g.TTL);
+    for(const sd of [1,-1]){v.frect(X2(sd,n4.pp.ID/2,n4.pp.OD/2),g.zTop-30,n4.pp.w,n4.R-n4.f.t-g.zTop+30);v.frect(X2(sd,n4.pp.ID/2,n4.f.OD/2),n4.R-n4.f.t,n4.f.OD/2-n4.pp.ID/2,n4.f.t);}
+    v.pl([[Ro,g.TTL-230],[Ro+180,g.TTL-230],[Ro+180,g.TTL-110],[Ro+90,g.TTL-20],[Ro,g.TTL-20]],'OUT',true); v.circ(Ro+100,g.TTL-120,20,'THIN');
+    v.dV(R,g.TTL,n4.pp.OD/2,g.zTop,Ro+130,fmt(g.Htc),{h:2.2}); v.dV(n4.pp.OD/2,g.zTop,n4.f.OD/2,n4.R,Ro+130,fmt(p.lp),{h:2.2});
+    const ang=deg(Math.atan(g.Htc/(R-n4.pp.OD/2))); v.line(R,g.TTL,R-300,g.TTL,'THIN'); v.arc(R,g.TTL,220,180-ang,180,'DIM'); {const a=v.P(R-250,g.TTL+40);v.sh.text(a[0],a[1],`${fmt(ang,1)}°`,2.2,{ha:'r',va:'m'});}
+    v.leader(R+t/2,g.TTL,8,8,'FULL PEN. BUTT WELD',2); v.leader(n4.f.OD/2,n4.R-n4.f.t/2,8,4,`N4 ${n4.pp.nps}" NCG VENT`,2);
+    v.leader(Ro+180,g.TTL-170,6,-8,'LIFTING LUG PL25\nHOLE Ø40 (2 NOS)',2); {const a=v.P(-n4.f.OD/2-40,g.TTL);v.sh.text(a[0],a[1]+1,'TTL',2.2,{ha:'r'});}
+  });
+  // F support lug
+  placeDetail(sh,cells[5],'F',`SUPPORT LUG (${p.nlug} NOS)`,[-60,-160,2*(L.b+L.pad+t)+520,L.tb+L.hg+120],(v)=>{
+    v.frect(-t,-120,t,L.tb+L.hg+220); v.rect(0,-60,L.pad,L.tb+L.hg+120,'OUT'); const x0=L.pad;
+    v.frect(x0,0,L.b,L.tb); v.pl([[x0,L.tb],[x0+L.b-15,L.tb],[x0+L.b-15,L.tb+25],[x0,L.tb+L.hg]],'OUT',true);
+    const hx=x0+L.b*0.6; v.line(hx,-40,hx,L.tb+40,'CEN');
+    v.dH(x0,0,x0+L.b,0,-90,fmt(L.b),{h:2}); v.dV(x0+L.b,0,x0+L.b,L.tb,x0+L.b+40,fmt(L.tb),{h:2}); v.dV(x0,L.tb,x0,L.tb+L.hg,-90,fmt(L.hg),{h:2});
+    v.leader(x0+L.b*0.3,L.tb+L.hg*0.4,8,10,`GUSSET PL t${L.tg} (2 NOS)`,2); v.leader(L.pad/2,L.tb+L.hg+40,6,8,`PAD PL t${L.pad}`,2);
+    // plan
+    const px=x0+L.b+260, cy=L.hg/2; v.rect(px,cy-L.d/2,L.b,L.d,'OUT'); const gy=L.d/2-L.tg/2-20;
+    v.rect(px,cy+gy-L.tg/2,L.b-15,L.tg,'THIN');v.rect(px,cy-gy-L.tg/2,L.b-15,L.tg,'THIN'); v.circ(px+L.b*0.6,cy,L.hole/2,'OUT');
+    v.line(px-30,cy,px+L.b+30,cy,'CEN'); v.dV(px+L.b,cy-L.d/2,px+L.b,cy+L.d/2,px+L.b+50,fmt(L.d),{h:2});
+    v.leader(px+L.b*0.6+L.hole/2*0.7,cy+L.hole/2*0.7,8,10,`Ø${L.hole} FOR ${L.bolt}`,2);
+    {const a=v.P(px+L.b/2,cy-L.d/2-50);v.sh.text(a[0],a[1],'PLAN',2.2,{ha:'c',va:'t'});}
+  });
+  return sh;
+}
+
+/* ---------------- SHEET 3 : DEVELOPMENT ---------------- */
+function segFit(L1,L2,th,pw,pl){for(let k=1;k<=36;k++){const f=th/k; const ch=f>=180?2*L1:2*L1*Math.sin(rad(f/2)); const h=f>=180?L1+Math.max(0,-L2*Math.cos(rad(f/2))):L1-L2*Math.cos(rad(f/2));
+  if((ch<=pl&&h<=pw)||(ch<=pw&&h<=pl)) return k;} return 36;}
+function sheetDev(r){
+  const sh=new Sheet(594,420),g=r.g,p=r.p,W=r.weights,rho=r.M.rho/1e9; frame(sh,r,'PLATE DEVELOPMENT & CUTTING','003','AS SHOWN');
+  // shell layout
+  const C=PI*(g.Ds+p.ts), H=g.TTL; const s=fitScale(C,H,215,255); const v=new View(sh,32,138,s);
+  v.rect(0,0,C,H,'OUT'); const nc=Math.ceil(H/p.pw), ns=Math.ceil(C/p.pl);
+  for(let i=1;i<nc;i++){const z=H*i/nc; v.line(0,z,C,z,'OUT');}
+  for(let j=1;j<ns;j++){for(let i=0;i<nc;i++){const x=C*j/ns+(i%2?C/ns/2:0); if(x<C) v.line(x,H*i/nc,x,H*(i+1)/nc,'OUT');}}
+  [0,90,180,270,360].forEach(a=>{const x=C*a/360;v.line(x,-60,x,H+60,'CEN');const q=v.P(x,H+60);sh.text(q[0],q[1]+1,`${a}°`,2.2,{ha:'c'})});
+  g.sets.forEach(st=>{v.line(0,st.zFt,C,st.zFt,'HID');});
+  {const q=v.P(C,g.sets.at(-1).zFt);sh.text(q[0]+2,q[1],'BTM BAFFLE WELD LINES',2,{va:'m',L:'NOTE'});}
+  g.noz.filter(n=>n.typ==='side').forEach(n=>{const x=C*(((n.o%360)+360)%360)/360; v.circ(x,n.z,n.pp.OD/2+2,'OUT'); v.line(x-n.pp.OD*0.7,n.z,x+n.pp.OD*0.7,n.z,'CEN');v.line(x,n.z-n.pp.OD*0.7,x,n.z+n.pp.OD*0.7,'CEN');
+    const q=v.P(x,n.z+n.pp.OD/2);sh.text(q[0]+1.5,q[1]+1.5,`${n.m} Ø${fmt(n.pp.OD+4)}  EL+${fmt(n.z)}`,2,{});});
+  for(let i=0;i<p.nlug;i++){const a=((p.olug+i*360/p.nlug)%360+360)%360,x=C*a/360; v.rect(x-(r.lug.d+150)/2,p.zlug-60,r.lug.d+150,r.lug.hg+r.lug.tb+120,'HID');}
+  v.dH(0,0,C,0,-90-12*s,`DEVELOPED LENGTH π×(ID+t) = ${fmt(C)}`,{h:2.4}); v.dV(0,0,0,H,-60,`${fmt(H)}`,{h:2.4});
+  sh.text(32,138+H/s+14,`SHELL DEVELOPMENT (VIEW FROM OUTSIDE)  1:${s}`,3,{});sh.text(32,138+H/s+9,`PL t${p.ts}, ${nc} COURSE(S) × ${ns} PLATE(S), PLATE ${p.pw}×${p.pl}`,2.2,{});
+  // sectors
+  const parts=[['BOTTOM CONE',g.Ds/2+p.tc/2,g.n3.OD/2+p.tc/2,g.Hcone,p.tc,1],['TOP CONE',g.Ds/2+p.tt/2,g.n4.OD/2+p.tt/2,g.Htc,p.tt,1],
+    ['BOTTOM BAFFLE',g.Ds/2,g.Dbb/2,g.Hbb,p.tb,p.nset],['TOP BAFFLE',g.Dtb/2,0,g.Htb,p.tb,p.nset]];
+  const cells=[[262,240,160,168],[424,240,160,168],[262,72,160,166],[424,72,160,166]]; const rows=[];
+  parts.forEach(([nm,R1,R2,h,tk,q],i)=>{const d=frustDev(R1,R2,h); const k=segFit(d.L1,d.L2,d.th,p.pw,p.pl);
+    const a0=90-d.th/2,a1=90+d.th/2; const pts=[];for(let a=a0;a<=a1+1e-6;a+=Math.max(1,d.th/60)) pts.push([Math.cos(rad(a)),Math.sin(rad(a))]);
+    const xs=[],ys=[];pts.forEach(u=>{xs.push(u[0]*d.L1,u[0]*d.L2);ys.push(u[1]*d.L1,u[1]*d.L2)});xs.push(0);ys.push(0);
+    const bb=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];
+    const [cx,cy,cw,ch]=cells[i]; const sc=fitScale(bb[2]-bb[0],bb[3]-bb[1],cw-10,ch-46); const ox=cx+cw/2-(bb[0]+bb[2])/2/sc, oy=cy+34-bb[1]/sc;
+    const vv=new View(sh,ox,oy,sc); vv.arc(0,0,d.L1,a0,a1,'OUT'); if(d.L2>1) vv.arc(0,0,d.L2,a0,a1,'OUT');
+    for(const a of [a0,a1]) vv.line(Math.cos(rad(a))*d.L2,Math.sin(rad(a))*d.L2,Math.cos(rad(a))*d.L1,Math.sin(rad(a))*d.L1,'OUT');
+    for(let j=1;j<k;j++){const a=a0+d.th*j/k;vv.line(Math.cos(rad(a))*d.L2,Math.sin(rad(a))*d.L2,Math.cos(rad(a))*d.L1,Math.sin(rad(a))*d.L1,'HID');}
+    vv.circ(0,0,6*sc,'THIN');
+    const chord=d.th>=180?2*d.L1:2*d.L1*Math.sin(rad(d.th/2));
+    const tx=[`R1 = ${fmt(d.L1)}`,`R2 = ${fmt(d.L2)}`,`θ = ${fmt(d.th,2)}°`,`CHORD = ${fmt(chord)}`,`${k} SEGMENT(S)`];
+    tx.forEach((s2,j)=>sh.text(cx+3,cy+28-j*4,s2,2.1,{}));
+    sh.text(cx+3,cy+ch-6,`${nm} ×${q}`,2.8,{}); sh.text(cx+3,cy+ch-10.5,`PL t${tk}  1:${sc}`,2.2,{}); sh.rect(cx,cy,cw,ch,'THIN');
+    rows.push([nm,q,tk,fmt(d.L1),fmt(d.L2),`${fmt(d.th,2)}°`,k,fmt(q*d.area*tk*rho)]);
+  });
+  rows.unshift(['SHELL',1,p.ts,`${fmt(C)} L`,`${fmt(H)} H`,'-',nc*ns,fmt(C*H*p.ts*rho)]);
+  rows.push(['ANNULUS RING',1,p.tr,`${fmt(PI*(g.Dbb+p.tr))} L`,`${fmt(g.Hann)} H`,'-',1,fmt(PI*(g.Dbb+p.tr)*g.Hann*p.tr*rho)]);
+  const yb=table(sh,24,110,[['PART',34],['QTY',9,'r'],['t',8,'r'],['R1/L',22,'r'],['R2/H',22,'r'],['θ',18,'r'],['SEG',9,'r'],['kg',20,'r']],rows,2,4.4,'CUTTING LIST (MEAN-SURFACE DEVELOPMENT)');
+  ['DEVELOPMENT ON MEAN SURFACE (NEUTRAL AXIS).','R1/R2 = SLANT RADII FROM CONE APEX.','ADD 3 mm/EDGE FOR BEVEL & TRIM; CHECK ROLL.','SEGMENT SEAMS: STAGGER ≥ 100 mm FROM','NOZZLE OPENINGS & SHELL SEAMS.'].forEach((l,i)=>sh.text(24,yb-6-i*3.6,l,2,{}));
+  return sh;
+}
+
+/* ===== UI ===== */
+const $=s=>document.querySelector(s);
+const inIframe=(()=>{try{return window.self!==window.top}catch(e){return true}})();
+let P={...DEF}, R=null, SHEETS={}, cur='res';
+try{const s=localStorage.getItem('dch-designer-v1'); if(s) P={...DEF,...JSON.parse(s)};}catch(e){}
+
+function buildForm(){
+  const a=$('#inputs'); a.innerHTML='';
+  SCHEMA.forEach(gp=>{const d=document.createElement('details');d.className='grp';d.open=gp.open;
+    d.innerHTML=`<summary>${gp.g}</summary>`;
+    gp.f.forEach(([id,lab,u,def,typ])=>{const row=document.createElement('div');row.className='f'+(typ==='t'||typ==='s'?' wide':'');
+      let ctl; if(typ==='s') ctl=`<select id="i_${id}">${def.map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select>`;
+      else if(typ==='t') ctl=`<input id="i_${id}" type="text" style="text-align:left">`;
+      else ctl=`<input id="i_${id}" type="number" step="${typ}" inputmode="decimal">`;
+      const [l1,...rest]=lab.split('<small>');
+      row.innerHTML=`<label for="i_${id}">${l1}${rest.length?'<small>'+rest.join('<small>'):''}</label>${ctl}${typ==='t'||typ==='s'?'':`<span class="u">${u}</span>`}`;
+      d.appendChild(row);});
+    a.appendChild(d);});
+  a.insertAdjacentHTML('beforeend','<p class="hint" style="margin-top:12px">ค่าเริ่มต้นเป็นตัวอย่างจากงาน DCH 02.1.26 HT (1,312 t/h, 92→100 °C, ไอ V03 1.09 bar a) ปรับแก้ได้ทุกช่อง ผลคำนวณและแบบอัปเดตทันที</p>');
+  fill(); a.addEventListener('input',onInput); a.addEventListener('change',onInput);
+}
+function fill(){Object.keys(DEF).forEach(k=>{const el=$('#i_'+k); if(el) el.value=P[k];})}
+function read(){const o={};Object.keys(DEF).forEach(k=>{const el=$('#i_'+k);const d=DEF[k];o[k]=typeof d==='number'?parseFloat(el.value):el.value;if(typeof d==='number'&&!Number.isFinite(o[k]))o[k]=d;});o.nset=Math.max(1,Math.round(o.nset));o.nlug=Math.max(2,Math.round(o.nlug));return o}
+let tmr; function onInput(){clearTimeout(tmr);tmr=setTimeout(()=>{P=read();try{localStorage.setItem('dch-designer-v1',JSON.stringify(P))}catch(e){};run()},250)}
+
+function run(){
+  try{R=calc(P);}catch(e){$('#p-res').innerHTML=`<div class="card"><b>คำนวณไม่ได้:</b> ${e.message}</div>`;return}
+  SHEETS={};
+  renderRes(); renderWt(); renderSer(); if(['s1','s2','s3'].includes(cur)) showSheet(cur,true);
+}
+function getSheet(k){if(!SHEETS[k]) SHEETS[k]=k==='s1'?sheetGA(R):k==='s2'?sheetDetails(R):sheetDev(R); return SHEETS[k];}
+
+function kpi(l,v,u){return `<div class="kpi"><span>${l}</span><b>${v}</b><i>${u||''}</i></div>`}
+function renderRes(){
+  const g=R.g,f=R.flow,W=R.weights;
+  const pill={ok:'<span class="pill ok">ผ่าน</span>',warn:'<span class="pill warn">ตรวจสอบ</span>',bad:'<span class="pill bad">ไม่ผ่าน</span>',info:'<span class="pill ok">ข้อมูล</span>'};
+  let h=`<div class="kpis">${kpi('ไอที่ใช้',fmt(f.mv*3.6,2),'t/h')}${kpi('ภาระความร้อน',fmt(f.Q/1000,2),'MW')}${kpi('Ø Shell (ID)',fmt(g.Ds),'mm')}
+   ${kpi('ความสูงรวม',fmt(g.Htot),'mm')}${kpi('น้ำหนักเปล่า',fmt(W.empty),'kg')}${kpi('น้ำหนักใช้งาน',fmt(W.oper),'kg')}</div>`;
+  h+=`<div class="card"><h3>การตรวจสอบ</h3>${R.chk.map(([l,t])=>`<div class="chk">${pill[l]}<span>${t}</span></div>`).join('')}</div>`;
+  h+=`<div class="card"><h3>Nozzle</h3><div class="tblw"><table class="t"><tr><th>Mark</th><th>บริการ</th><th>Ø คำนวณ mm</th><th>ขนาดเลือก</th><th>ID mm</th><th>ความเร็ว m/s</th><th>ทิศ</th><th>ระดับจาก BTL</th></tr>
+   ${g.noz.map(n=>`<tr><td>${n.m}</td><td>${n.th}</td><td class="n">${n.calc?fmt(n.calc):'–'}</td><td class="n">${n.pp.nps}"${n.pp.rolled?' (rolled)':''}</td><td class="n">${fmt(n.pp.ID,1)}</td><td class="n">${n.v?fmt(n.v,2):'–'}</td><td class="n">${n.typ==='side'?n.o+'°':n.typ==='top'?'บน':'ล่าง'}</td><td class="n">${fmt(n.typ==='side'?n.z:n.typ==='top'?g.zTop:-g.Hcone)}</td></tr>`).join('')}</table></div></div>`;
+  h+=`<div class="card"><h3>ขนาดหลักและระดับ (z = 0 ที่ BTL รอยต่อกรวยล่าง/shell)</h3><div class="tblw"><table class="t">
+   <tr><th>รายการ</th><th>ค่า</th></tr>
+   ${[['Ø bottom baffle (รูกลาง) / annulus ring',g.Dbb],['Ø top baffle',g.Dtb],['Ø shell ID / OD',`${g.Ds} / ${g.OD}`],['สูง bottom / top baffle',`${fmt(g.Hbb)} / ${fmt(g.Htb)}`],
+      ['ระยะต่อชุด (pitch)',fmt(g.pitch)],['สูงกรวยล่าง / กรวยบน',`${fmt(g.Hcone)} / ${g.Htc}`],['สูง bottom annulus',fmt(g.Hann)],
+      ...g.sets.map((s,i)=>[`ชุดที่ ${i+1}: ขอบร่ม / ยอดร่ม / รูกรวย / ขอบกรวย`,`${fmt(s.zUr)} / ${fmt(s.zUa)} / ${fmt(s.zFh)} / ${fmt(s.zFt)}`]),
+      ['TTL (ปลาย shell)',fmt(g.TTL)],['ยอดกรวยบน',fmt(g.zTop)],['ไอผ่านรู / ช่อง annulus (จริง)',`${fmt(R.vel.vHole,2)} / ${fmt(R.vel.vAnn,2)} m/s`],
+      ['Vacuum: ช่วงไม่มีค้ำสูงสุด / Pallow',`${fmt(R.vac.Lmax)} mm / ${fmt(R.vac.Pall,2)} bar`],['ขนาด Lug',`${R.lug.b}×${R.lug.d}×${R.lug.tb}, gusset ${R.lug.hg}×t${R.lug.tg}, ${R.lug.bolt}`]]
+     .map(r=>`<tr><td>${r[0]}</td><td class="n">${typeof r[1]==='number'?fmt(r[1]):r[1]}</td></tr>`).join('')}</table></div></div>`;
+  h+=`<div class="card"><h3>รายการคำนวณทีละขั้น</h3><div class="tblw"><table class="t"><tr><th>ขั้น</th><th>สูตร</th><th>ค่า</th><th>หน่วย</th></tr>${R.rep.map(r=>`<tr><td>${r[0]}</td><td class="mono">${r[1]}</td><td class="n">${r[2]}</td><td>${r[3]}</td></tr>`).join('')}</table></div></div>`;
+  $('#p-res').innerHTML=h;
+}
+function renderWt(){
+  const W=R.weights; let h=`<div class="kpis">${kpi('น้ำหนักเปล่า (fabricated)',fmt(W.empty),'kg')}${kpi('น้ำหนักใช้งาน',fmt(W.oper),'kg')}${kpi('น้ำหนักทดสอบน้ำ',fmt(W.hydro),'kg')}${kpi('ปริมาตรภายใน',fmt(W.Vtot,2),'m³')}${kpi('น้ำหนักต่อ lug (ใช้งาน)',fmt(W.oper/P.nlug),'kg')}</div>`;
+  h+=`<div class="card"><h3>รายการน้ำหนัก (ρ = ${R.M.rho} kg/m³, ${R.M.name})</h3><div class="tblw"><table class="t"><tr><th>กลุ่ม</th><th>ชิ้นงาน</th><th>รายละเอียด</th><th>จำนวน</th><th>kg/ชิ้น</th><th>รวม kg</th></tr>
+  ${W.items.map(i=>`<tr><td>${i.grp}</td><td>${i.item}</td><td class="mono">${i.spec}</td><td class="n">${i.qty}</td><td class="n">${fmt(i.unit,1)}</td><td class="n">${fmt(i.tot,0)}</td></tr>`).join('')}
+  <tr><td colspan="5">รวมย่อย</td><td class="n">${fmt(W.sub)}</td></tr><tr><td colspan="5">เผื่อรอยเชื่อม/อื่นๆ ${P.cont}%</td><td class="n">${fmt(W.cont)}</td></tr>
+  <tr class="tot"><td colspan="5">น้ำหนักเปล่ารวม</td><td class="n">${fmt(W.empty)}</td></tr>
+  <tr><td colspan="5">+ น้ำอ้อยค้าง (กรวยล่างเต็ม + ฟิล์มบน baffle)</td><td class="n">${fmt(W.hold)}</td></tr>
+  <tr class="tot"><td colspan="5">น้ำหนักใช้งาน</td><td class="n">${fmt(W.oper)}</td></tr>
+  <tr><td colspan="5">น้ำหนักทดสอบน้ำ (เต็มถัง)</td><td class="n">${fmt(W.hydro)}</td></tr></table></div>
+  <p><button class="btn" id="dCsv" type="button">ส่งออก BOM (.csv)</button></p></div>
+  <div class="note">น้ำหนักหน้าแปลนเป็นค่าประมาณตาม ASME B16.5/B16.47-B Class 150 slip-on; แผ่นเสริม (pad) คิด OD = 2×d หนาเท่า shell; lug เลือกขนาดอัตโนมัติจากน้ำหนักใช้งานต่อขา ควรตรวจสอบโครงสร้างรองรับและแรงลม/แผ่นดินไหวแยกต่างหาก</div>`;
+  $('#p-wt').innerHTML=h; $('#dCsv').onclick=()=>{const W2=R.weights;const csv=['Group,Item,Spec,Qty,kg each,kg total',...W2.items.map(i=>[i.grp,i.item,i.spec,i.qty,i.unit.toFixed(1),i.tot.toFixed(0)].map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',')),`,,Contingency ${P.cont}%,,,${W2.cont.toFixed(0)}`,`,,EMPTY,,,${W2.empty.toFixed(0)}`,`,,OPERATING,,,${W2.oper.toFixed(0)}`,`,,HYDROTEST,,,${W2.hydro.toFixed(0)}`].join('\r\n');save('﻿'+csv,`${P.dwg}_BOM.csv`,'text/csv')};
+}
+function renderSer(){
+  const el=$('#p-ser'); if(!el.dataset.b){el.dataset.b=1;
+    el.innerHTML=`<div class="card"><h3>DCH ต่ออนุกรม ใช้ไอต่างระดับความดัน (bleed vapour ต่างตัว)</h3>
+    <p class="hint">ตามต้นฉบับ: ทางเข้าน้ำอ้อยของ DCH ตัวถัดไปต้องมีซีล (sealing tank) พื้นที่หน้าตัด = 2 เท่าของท่อเข้า มีท่อ bypass จาก sealing tank ไปท่อออกพร้อมวาล์วระบายตอนหยุด และระดับติดตั้งต่างกันตามผลต่างความดันไอ + เผื่อ 1–1.2 m</p>
+    <div class="f"><label for="sP1">ความดันไอ DCH ตัวบน (ต่ำ)</label><input id="sP1" type="number" step="0.01" value="0.62"><span class="u">bar a</span></div>
+    <div class="f"><label for="sP2">ความดันไอ DCH ตัวล่าง (สูง)</label><input id="sP2" type="number" step="0.01" value="1.09"><span class="u">bar a</span></div>
+    <div class="f"><label for="sRho">ความหนาแน่นน้ำอ้อย</label><input id="sRho" type="number" step="5" value="1060"><span class="u">kg/m³</span></div>
+    <div class="f"><label for="sM">เผื่อการแกว่ง <small>1.0–1.2</small></label><input id="sM" type="number" step="0.1" value="1.2"><span class="u">m</span></div>
+    <div id="sOut" style="margin-top:10px"></div></div>`;
+    el.addEventListener('input',renderSer);}
+  const p1=+$('#sP1').value,p2=+$('#sP2').value,rho=+$('#sRho').value,m=+$('#sM').value;
+  const dP=Math.abs(p2-p1), h=dP*1e5/(rho*9.81), A=PI/4*(R.g.noz[1].pp.ID/1000)**2*2;
+  $('#sOut').innerHTML=`<table class="t"><tr><td>ผลต่างความดัน</td><td class="n">${fmt(dP,3)} bar (${fmt(dP*750.06,0)} mmHg)</td></tr>
+   <tr><td>ความสูงขาน้ำ ΔP/(ρ·g)</td><td class="n">${fmt(h,2)} m</td></tr>
+   <tr class="tot"><td>ระยะระดับต่างขั้นต่ำ (รวมเผื่อ)</td><td class="n">${fmt(h+m,2)} m</td></tr>
+   <tr><td>Sealing tank: พื้นที่หน้าตัด ≥ 2 × ท่อ N2 (${R.g.noz[1].pp.nps}")</td><td class="n">${fmt(A,3)} m² (Ø ≥ ${fmt(Math.sqrt(4*A/PI)*1000)} mm)</td></tr></table>
+   <p class="hint">ตัวอย่างในต้นฉบับ (quintuple, DCH1 ใช้ไอ body 4 / DCH2 ใช้ไอ body 3, ΔP สูงสุด 0.42 kg/cm²) ได้ระดับต่าง ≈ 5.8 m + 1–1.2 m เนื่องจากต้นฉบับคิดจากค่าสุญญากาศเทียบบรรยากาศ ซึ่งให้ค่าปลอดภัยกว่าวิธีผลต่างความดันตรง ควรเลือกค่าที่มากกว่า</p>`;
+}
+function renderMethod(){
+  $('#p-met').innerHTML=`<div class="card method"><h3>หลักการออกแบบ DCH (สรุปจาก sugarprocesstech.com/direct-contact-heater-design)</h3>
+  <p>DCH ให้ไอน้ำ (bleed vapour) สัมผัสกับน้ำอ้อยโดยตรง ไม่มีผนังกั้น ทำให้ approach ΔT ต่ำเพียง 1–20 °C (tubular 6–100 °C) ไม่มี head loss ไม่ต้องล้าง/ไม่ต้องมีตัวสำรอง แต่ condensate ปนเข้าน้ำอ้อย เพิ่มภาระระเหย</p>
+  <p>น้ำอ้อยตกผ่าน baffle สลับ 2 แบบ: <b>bottom baffle</b> (กรวยรับ ติดกับ shell มีรูกลาง) ส่งน้ำอ้อยเข้าศูนย์กลาง และ <b>top baffle</b> (ทรงร่ม) กระจายน้ำอ้อยออกขอบ ไอเข้าทาง bottom annulus ไหลขึ้นผ่านช่องระหว่างร่มกับ shell และรูกลางกรวย ตัดผ่านม่านน้ำอ้อยทุกชั้น NCG ระบายด้านบน</p>
+  <h4>สูตร</h4>
+  <div class="formula">Qv = Qj·Cp·ΔT / λ*,  λ* = λ + (T_vapour − T_juice,out)·Cp,w</div>
+  <div class="formula">D = √(4·Q/(π·v))  ใช้กับท่อไอ, น้ำอ้อยเข้า, น้ำอ้อยออก (Qj+Qv), NCG (1.5–2 %Qv), รู bottom baffle (v ≈ 10 m/s)</div>
+  <div class="formula">D_top = D_bottom + 100…120 ;  D_shell = √(D_bottom² + D_top²)  (พื้นที่ annulus รอบร่ม = พื้นที่รูกลาง)</div>
+  <div class="formula">H_bottom = tan φb·(Ds − Db)/2 ;  H_top = tan φt·Dt/2 ;  H_cone = tan φc·(Ds − D_out)/2</div>
+  <div class="formula">H_total = H_topcone + H_vapourspace + D_juicein + gap_in + n·(H_bottom + H_top + gap1 + gap2) + H_top→annulus + H_annulus + H_cone</div>
+  <h4>ค่าแนะนำจากต้นฉบับ</h4><ul>
+  <li>ความเร็ว: น้ำอ้อยเข้า 1.6–2.0 m/s (ปั๊ม) หรือ 1–1.1 (gravity จาก DCH อีกตัว), น้ำอ้อยออก 1–1.1, ไอผ่าน annulus ~10, NCG 10–20 m/s</li>
+  <li>มุม: top baffle 130°, bottom baffle 120°, กรวยล่าง 55–60°; baffle อย่างน้อยชนิดละ 2</li>
+  <li>gap top→bottom 40–60 mm, bottom→top 25–50 mm, juice inlet→baffle 200–250, top baffle→annulus 200–250, annulus = Ø ไอ + 50–100, vapour space 1500–2000, กรวยบน 175 (Ds ≤ 1100) / 345 mm</li></ul>
+  <h4>การตีความที่โปรแกรมใช้ (ต้นฉบับไม่ระบุชัด)</h4><ul>
+  <li>มุม 130°/120° เป็นมุมยอด (included) → ความชันจากแนวนอน φ = (180 − มุม)/2 = 25° / 30° ส่วนมุมกรวยล่าง 55° วัดจากแนวนอน</li>
+  <li>ความเร็วไอในท่อเข้าไม่ระบุในต้นฉบับ ใช้ค่าทั่วไป 20–30 m/s (ปรับได้)</li>
+  <li>gap1 = ระยะดิ่งจากขอบบน bottom baffle (ที่ shell) ถึงขอบร่มตัวบน; gap2 = ระยะดิ่งจากรูกลาง bottom baffle ถึงยอดร่มตัวล่าง</li>
+  <li>z = 0 ที่ BTL (รอยต่อกรวยล่างกับ shell) ลำดับจากล่างขึ้นบน: annulus → ร่ม → กรวย → … → juice inlet → vapour space → กรวยบน</li>
+  <li>เพิ่มการตรวจสอบที่ต้นฉบับไม่มี: ความเร็วไอแนวรัศมีในช่องระหว่าง baffle, ความหนา shell รับแรงดันภายใน (ASME UG-27), รับ full vacuum โดยประมาณ (Windenburg–Trilling, FS 3; baffle ที่เชื่อมรอบ shell ถือเป็นแนวค้ำ), ขนาด lug จากน้ำหนัก</li></ul>
+  <h4>ข้อจำกัด</h4><p>เป็นการออกแบบเบื้องต้นเพื่อกำหนดขนาด ทำแบบประกอบ และประมาณน้ำหนัก ชิ้นส่วนรับแรงดันต้องตรวจสอบโดยวิศวกรตาม ASME VIII Div.1 และมาตรฐานโรงงานก่อนสั่งผลิต ขนาดหน้าแปลน/น้ำหนักเป็นค่าประมาณ</p>
+  <h4>การใช้งานบนเครื่องอื่น</h4><p>ไฟล์ <b>DCH_Designer.html</b> เป็นไฟล์เดียว ทำงานออฟไลน์ เปิดด้วย Chrome/Edge ได้ทุกเครื่องโดยไม่ต้องติดตั้ง (คัดลอกผ่าน USB/แชร์ไดรฟ์ได้) ปุ่ม “บันทึกโปรเจกต์” เก็บค่าเป็น .json เพื่อเปิดต่อบนเครื่องอื่น ดาวน์โหลด DXF/SVG/CSV และพิมพ์เป็น PDF ได้จากไฟล์ออฟไลน์</p></div>`;
+}
+
+/* ---------- sheet viewer ---------- */
+let vb=null;
+function showSheet(k,keep){
+  const sh=getSheet(k); const vw=$('#viewer'); const old=vb;
+  vw.innerHTML=toSVG(sh); const svg=vw.querySelector('svg'); svg.removeAttribute('width');svg.removeAttribute('height');
+  vb=keep&&old?old:[0,0,sh.w,sh.h]; setVB();
+  $('#sheetTitle').textContent={s1:'แผ่นที่ 1 – General Arrangement',s2:'แผ่นที่ 2 – Details A–F',s3:'แผ่นที่ 3 – Plate development & cutting list'}[k];
+}
+function setVB(){const svg=$('#viewer svg'); if(svg) svg.setAttribute('viewBox',vb.join(' '));}
+function zoom(f,cx=0.5,cy=0.5){const [x,y,w,h]=vb;const nw=w*f,nh=h*f;vb=[x+(w-nw)*cx,y+(h-nh)*cy,nw,nh];setVB();}
+(function(){const vw=document.getElementById('viewer');let drag=null;
+  vw.addEventListener('wheel',e=>{e.preventDefault();const r=vw.getBoundingClientRect();zoom(e.deltaY>0?1.15:0.87,(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height)},{passive:false});
+  vw.addEventListener('pointerdown',e=>{drag=[e.clientX,e.clientY,[...vb]];vw.setPointerCapture(e.pointerId)});
+  vw.addEventListener('pointermove',e=>{if(!drag)return;const r=vw.getBoundingClientRect();const sc=Math.max(drag[2][2]/r.width,drag[2][3]/r.height);vb=[drag[2][0]-(e.clientX-drag[0])*sc,drag[2][1]-(e.clientY-drag[1])*sc,drag[2][2],drag[2][3]];setVB()});
+  vw.addEventListener('pointerup',()=>drag=null);})();
+
+/* ---------- files ---------- */
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),2200)}
+function save(text,name,type){
+  if(inIframe){$('#copyBox').hidden=false;$('#dump').value=text;$('#dump').select();
+    try{navigator.clipboard.writeText(text).then(()=>toast(`คัดลอก ${name} ไปคลิปบอร์ดแล้ว`),()=>toast('เลือกข้อความด้านล่างแล้วคัดลอก'))}catch(e){toast('เลือกข้อความด้านล่างแล้วคัดลอก')}
+    if(cur!=='s1'&&cur!=='s2'&&cur!=='s3'){ /* show box in sheet panel */ }
+    return;}
+  const b=new Blob([text],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);toast('บันทึก '+name);
+}
+$('#dSvg').onclick=()=>save(toSVG(getSheet(cur)),`${P.dwg}-00${cur.slice(1)}_${P.rev}.svg`,'image/svg+xml');
+$('#dDxf').onclick=()=>save(toDXF(getSheet(cur)),`${P.dwg}-00${cur.slice(1)}_${P.rev}.dxf`,'application/dxf');
+$('#zFit').onclick=()=>{const sh=getSheet(cur);vb=[0,0,sh.w,sh.h];setVB()};$('#zIn').onclick=()=>zoom(0.8);$('#zOut').onclick=()=>zoom(1.25);
+$('#bSave').onclick=()=>save(JSON.stringify({app:'DCH Designer',v:1,inputs:P},null,1),`${P.dwg}_${(P.tag||'dch').replace(/\W+/g,'_')}.json`,'application/json');
+$('#fLoad').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const j=JSON.parse(rd.result);P={...DEF,...(j.inputs||j)};fill();onInput();toast('เปิดโปรเจกต์แล้ว')}catch(err){toast('ไฟล์ไม่ถูกต้อง: ต้องเป็น .json ที่บันทึกจากโปรแกรมนี้')}};rd.readAsText(f);e.target.value=''};
+$('#bReset').onclick=()=>{P={...DEF};fill();onInput();toast('กลับค่าเริ่มต้นแล้ว')};
+$('#bPrint').onclick=()=>{ if(inIframe){toast('การพิมพ์ใช้ได้ในไฟล์ออฟไลน์ DCH_Designer.html (หน้านี้พิมพ์ไม่ได้)');return;}
+  $('#printArea').innerHTML=['s1','s2','s3'].map(k=>toSVG(getSheet(k))).join(''); $('#printArea').querySelectorAll('svg').forEach(s=>{s.removeAttribute('width');s.removeAttribute('height')}); window.print(); };
+if(inIframe) $('#bPrint').title='ใช้ได้ในไฟล์ออฟไลน์';
+
+/* ---------- tabs ---------- */
+$('#tabs').addEventListener('click',e=>{const b=e.target.closest('.tab');if(!b)return;cur=b.dataset.t;
+  document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',x===b?'true':'false'));
+  ['res','wt','ser','met'].forEach(k=>$('#p-'+k).hidden=k!==cur); $('#p-sheet').hidden=!['s1','s2','s3'].includes(cur);
+  if(!$('#p-sheet').hidden) showSheet(cur); try{location.hash=cur}catch(e){} });
+
+buildForm(); renderMethod(); run();
+{const h=(location.hash||'').slice(1); const b=document.querySelector(`.tab[data-t="${h}"]`); if(b) b.click();}
+
+</script>
+</body></html>
