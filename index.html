@@ -181,14 +181,15 @@ const SCHEMA=[
   ['dwg','เลขที่แบบ (prefix)','','DCH-ME','t'],['rev','Revision','','A','t'],
   ['by','ออกแบบโดย','','PD01','t'],['status','สถานะแบบ','','PRELIMINARY','t']]},
  {g:'กระบวนการ (Process)',open:true,f:[
-  ['qj','อัตราไหลน้ำอ้อย','t/h',1312,1],['tin','อุณหภูมิเข้า','°C',92,0.5],['tout','อุณหภูมิออก','°C',100,0.5],
-  ['bx','Brix น้ำอ้อย','%',15,0.5],
+  ['prod','ของเหลวที่ให้ความร้อน','',[['juice','น้ำอ้อย (juice)'],['syrup','น้ำเชื่อม (syrup)']],'s'],
+  ['qj','อัตราไหล (น้ำอ้อย/น้ำเชื่อม)','t/h',1312,1],['tin','อุณหภูมิเข้า','°C',92,0.5],['tout','อุณหภูมิออก','°C',100,0.5],
+  ['bx','Brix','%',15,0.5],['pty','Purity','%',85,0.5],
   ['vmode','ระบุไอน้ำโดย','',[['P','ความดัน (bar a)'],['T','อุณหภูมิ (°C)']],'s'],
   ['pv','ความดันไอ (bleed vapour)','bar a',1.09,0.01],['tv','อุณหภูมิไอ (ถ้าเลือก T)','°C',102.3,0.1],
   ['ncg','NCG <small>1.5–2 % ของไอ</small>','%',2,0.1]]},
  {g:'ความเร็วออกแบบ',open:true,f:[
-  ['vji','น้ำอ้อยเข้า <small>ปั๊ม 1.6–2.0 / gravity 1.0–1.1</small>','m/s',1.8,0.05],
-  ['vjo','น้ำอ้อยออก (gravity) <small>1.0–1.1</small>','m/s',1.05,0.05],
+  ['vji','ท่อเข้า <small>juice: ปั๊ม 1.6–2.0 / gravity 1.0–1.1 · syrup: 0.8–1.5</small>','m/s',1.8,0.05],
+  ['vjo','ท่อออก (gravity) <small>juice 1.0–1.1 · syrup 0.5–0.8</small>','m/s',1.05,0.05],
   ['vvi','ท่อไอเข้า <small>ค่าทั่วไป 20–30 (ไม่ระบุในต้นฉบับ)</small>','m/s',25,0.5],
   ['van','ไอผ่าน annulus/รูแผ่นกั้น <small>~10</small>','m/s',10,0.5],
   ['vnc','NCG <small>10–20</small>','m/s',15,0.5]]},
@@ -231,10 +232,10 @@ function calc(p){
   const rep=(s,f,v,u,d=2)=>r.rep.push([s,f,typeof v==='number'?fmt(v,d):v,u]);
   const chk=(lvl,txt)=>r.chk.push([lvl,txt]);
   // juice props
-  const cp=4.187*(1-0.006*p.bx), rho20=1000*(1+p.bx*(p.bx+200)/54000);
+  const Tm=(p.tin+p.tout)/2, cp=4.1868-0.0297*p.bx+4.61e-5*p.bx*p.pty+7.5e-5*p.bx*Tm, rho20=1000*(1+p.bx*(p.bx+200)/54000);
   const rhoT=T=>rho20*(1-0.00055*(T-20));
   const ri=rhoT(p.tin), ro=rhoT(p.tout);
-  rep('Cp น้ำอ้อย','4.187·(1−0.006·Bx)',cp,'kJ/kg·K',3);
+  rep('Cp ของเหลว','4.1868 − 0.0297·Bx + 4.61e-5·Bx·Pty + 7.5e-5·Bx·Tavg',cp,'kJ/kg·K',3);
   rep('ρ น้ำอ้อยเข้า / ออก','ρ20·(1−0.00055·(T−20))',`${fmt(ri,0)} / ${fmt(ro,0)}`,'kg/m³');
   // vapour
   const s=p.vmode==='T'?satT(p.tv):satP(p.pv); r.s=s;
@@ -295,13 +296,27 @@ function calc(p){
   const vi=(q,pp)=>q/A(pp.ID);
   r.vel={vHole,vAnn,vRadH,vRadR,vjG1,vjG2,v1:vi(Qv,n1),v2:vi(Qji,n2),v3:vi(Qjo,n3),v4:vi(Qnc,n4)};
   const band=(v,lo,hi,txt)=>chk(v<lo*0.9||v>hi*1.1?'warn':'ok',`${txt} = ${fmt(v,2)} m/s (แนะนำ ${lo}–${hi})`);
-  band(r.vel.v1,18,32,'ไอในท่อ N1'); band(r.vel.v2,p.vji>1.3?1.6:1.0,p.vji>1.3?2.0:1.1,'น้ำอ้อยใน N2');
-  band(r.vel.v3,0.9,1.1,'น้ำอ้อยใน N3'); band(r.vel.v4,10,20,'NCG ใน N4');
+  band(r.vel.v1,18,32,'ไอในท่อ N1'); const syr=p.prod==='syrup';
+  if(syr){band(r.vel.v2,0.8,1.5,'น้ำเชื่อมใน N2');} else band(r.vel.v2,p.vji>1.3?1.6:1.0,p.vji>1.3?2.0:1.1,'น้ำอ้อยใน N2');
+  if(syr) band(r.vel.v3,0.5,0.8,'น้ำเชื่อมใน N3 (gravity)'); else band(r.vel.v3,0.9,1.1,'น้ำอ้อยใน N3'); band(r.vel.v4,10,20,'NCG ใน N4');
   band(vHole,8,10.5,'ไอผ่านรู bottom baffle'); band(vAnn,8,10.5,'ไอผ่านช่อง top baffle–shell');
   chk(vRadH>15?'warn':'ok',`ไอแนวรัศมีที่ขอบรู bottom baffle = ${fmt(vRadH,1)} m/s (ช่องสูง ${fmt(cHole,0)} mm)`);
   chk(vRadR>15?'warn':'ok',`ไอแนวรัศมีเหนือขอบ top baffle = ${fmt(vRadR,1)} m/s (ช่องสูง ${fmt(cRim,0)} mm)`);
-  chk('info',`ม่านน้ำอ้อยผ่าน gap: ขอบ top baffle ${fmt(vjG1,2)} m/s, รู bottom baffle ${fmt(vjG2,2)} m/s (ข้อมูลประกอบ)`);
+  chk('info',`ม่านของเหลวผ่าน gap: ขอบ top baffle ${fmt(vjG1,2)} m/s, รู bottom baffle ${fmt(vjG2,2)} m/s (ข้อมูลประกอบ)`);
   if(p.nset<2) chk('bad','ต้องมี baffle อย่างน้อย 2 ชุด');
+  // dilution, BPE, outlet leg, viscous product
+  const bxOut=p.bx*mj/(mj+mv); r.bxOut=bxOut;
+  chk(p.bx-bxOut>0.5?'warn':'info',`คอนเดนเสทเจือจาง: Brix ${fmt(p.bx,1)} → ${fmt(bxOut,2)} (น้ำเพิ่ม ${fmt(mv*3.6,2)} t/h กลับไปเป็นภาระระเหย)`);
+  const bpe=2*p.bx/(100-p.bx); r.bpe=bpe;
+  if(p.bx>=30) chk('info',`BPE ประมาณ ${fmt(bpe,1)} °C: ของเหลวเข้มข้นอาจร้อนได้สูงกว่า T ไอ เล็กน้อย การตรวจ approach ข้างบนจึงเป็นค่าปลอดภัย`);
+  const Patm=1.01325;
+  if(s.P<Patm){const hl=(Patm-s.P)*1e5/(ro*9.81); r.leg=hl;
+    chk('warn',`ถังทำงานใต้สุญญากาศ (${fmt(s.P,3)} bar a): ท่อออก N3 ต้องเป็น barometric leg สูง ≥ ${fmt(hl,2)} m + เผื่อ 1.0–1.2 m = ${fmt(hl+1.2,2)} m เหนือระดับซีล/ถังรับ หรือใช้ปั๊มที่ NPSH พอ`);
+    chk('warn',`ใต้สุญญากาศมีอากาศรั่วเข้าได้ ควรใช้ NCG ช่วงบน (≥ 2 %) และต่อ N4 เข้าระบบ condenser/vacuum`);}
+  else { r.leg=0; chk('ok',`ถังความดันบวก (${fmt(s.P,3)} bar a) น้ำออกไหลด้วยแรงดัน/gravity ไปถังรับได้`); }
+  if(p.bx>=40){
+    chk('warn',`ของเหลวหนืด (Bx ${p.bx}, ~${p.bx>=60?'20–40':'5–15'} mPa·s ที่ 70–80 °C เทียบน้ำอ้อย ~0.5): วิธีในต้นฉบับพัฒนาสำหรับน้ำอ้อย ม่านน้ำเชื่อมจะหนาและไหลช้ากว่า ควรใช้ gap ช่วงบน (G1 ≥ 55, G2 ≥ 45), ความเร็วในท่อช่วง syrup และตรวจ pressure drop ท่อออก`);
+    if(vjG1>1.5||vjG2>1.5) chk('warn',`ความเร็วม่านน้ำเชื่อมผ่าน gap สูง (${fmt(vjG1,2)} / ${fmt(vjG2,2)} m/s) แนะนำ ≤ 1.5 m/s: เพิ่ม G1/G2 หรือเพิ่มค่าเพิ่ม D_top`);}
   [['g1',40,60],['g2',25,50],['hvs',1500,2000],['hjg',200,250],['hta',200,250],['aadd',50,100],['dadd',100,120]].forEach(([k,lo,hi])=>{if(p[k]<lo||p[k]>hi) chk('warn',`${k} = ${p[k]} อยู่นอกช่วงแนะนำ ${lo}–${hi} mm`)});
   if(p.acone<55||p.acone>60) chk('warn','มุมกรวยล่างนอกช่วง 55–60°');
   // mechanical: internal pressure & vacuum
@@ -321,8 +336,8 @@ function calc(p){
   const proj=d=>Ro+p.lp; // centre to flange face
   const noz=[
    {m:'N1',sv:'VAPOUR INLET',th:'ไอเข้า',pp:n1,q:Qv,v:r.vel.v1,o:p.oN1,z:Hann/2,typ:'side',calc:dVap,pad:true},
-   {m:'N2',sv:'JUICE INLET',th:'น้ำอ้อยเข้า',pp:n2,q:Qji,v:r.vel.v2,o:p.oN2,z:zN2,typ:'side',calc:dJi,pad:true},
-   {m:'N3',sv:'JUICE OUTLET',th:'น้ำอ้อยออก',pp:n3,q:Qjo,v:r.vel.v3,o:0,z:-Hcone,typ:'bot',calc:dJo,pad:false},
+   {m:'N2',sv:(syr?'SYRUP':'JUICE')+' INLET',th:'น้ำอ้อยเข้า',pp:n2,q:Qji,v:r.vel.v2,o:p.oN2,z:zN2,typ:'side',calc:dJi,pad:true},
+   {m:'N3',sv:(syr?'SYRUP':'JUICE')+' OUTLET',th:'น้ำอ้อยออก',pp:n3,q:Qjo,v:r.vel.v3,o:0,z:-Hcone,typ:'bot',calc:dJo,pad:false},
    {m:'N4',sv:'NCG VENT',th:'ระบาย NCG',pp:n4,q:Qnc,v:r.vel.v4,o:0,z:zTop,typ:'top',calc:dNc,pad:false},
    {m:'N5',sv:'PT / PI',th:'วัดความดัน',pp:pickPipe(0,ss,0,1),o:p.oN5,z:zN2t+p.hvs*0.75,typ:'side',pad:false},
    {m:'N6',sv:'WATER WASH',th:'น้ำล้าง',pp:pickPipe(0,ss,0,2),o:p.oN6,z:zN2t+200,typ:'side',pad:false},
@@ -330,10 +345,10 @@ function calc(p){
    {m:'M2',sv:'MANHOLE',th:'ช่องคนลอด (ล่าง)',pp:mhP,o:p.oM2,z:Math.max(Hann/2,mhP.OD/2+120),typ:'side',pad:true,mh:true}
   ];
   noz.forEach(n=>{n.f=flg(n.pp.nps); n.R=n.typ==='side'?proj():(n.typ==='top'?zTop+p.lp:-Hcone-p.lp); n.side=(((n.o%360)+360)%360)<180?1:-1;});
+  if(!(p.zlug>0)){let zl=Hann+150; noz.forEach(n=>{if(n.typ==='side'&&n.z<sets[0].zUr) zl=Math.max(zl,n.z+(n.pad?n.pp.OD:n.pp.OD/2)+100)}); p.zlug=Math.ceil(zl/50)*50;}
   r.g={Ds,Dbb,Dtb,DsC,DbbC,Ro,OD,Hbb,Htb,Hcone,Hann,Htc,pitch,sets,zSets,zN2,zN2t,TTL,zTop,Htot,bTop,bBot,ts:p.ts,noz,
        cHole,cRim,Dout,n3,n4};
   r.flow={mj,mv,Q,Qv,Qji,Qjo,Qnc,lam,cp,ri,ro,appr};
-  if(!(p.zlug>0)) p.zlug=Math.round((Hann+150)/50)*50;
   r.weights=weights(r);
   return r;
 }
@@ -552,6 +567,7 @@ function detailFlag(v,x,z,rWorld,letter,dx=1){const a=v.P(x,z);const rr=Math.max
 
 /* ---------------- SHEET 1 : GA ---------------- */
 function sheetGA(r){
+  const PROD=r.p.prod==='syrup'?'SYRUP':'JUICE';
   const sh=new Sheet(594,420),g=r.g,p=r.p,W=r.weights,R=g.Ds/2,t=p.ts,Ro=g.Ro,L=r.lug;
   const side=g.noz.filter(n=>n.typ==='side');
   const xR=Math.max(Ro+p.lp+60,Ro+t+L.b+60), zMin=-g.Hcone-p.lp-60, zMax=g.zTop+p.lp+80;
@@ -590,7 +606,7 @@ function sheetGA(r){
   // flow labels
   const lab=(n,txt)=>{const P=n.typ==='side'?[n.side*(n.R+40),n.z]:[0,n.R+(n.typ==='top'?40:-40)];const pp=v.P(...P);
     if(n.typ==='side') sh.text(pp[0]+n.side*2,pp[1]-2,txt,2.2,{ha:n.side>0?'l':'r',va:'t',L:'NOTE'}); else sh.text(pp[0]+12,pp[1],txt,2.2,{va:'m',L:'NOTE'});};
-  lab(g.noz[0],'VAPOUR IN'); lab(n2,'JUICE IN'); lab(n3,'JUICE OUT'); lab(n4,'NCG');
+  lab(g.noz[0],'VAPOUR IN'); lab(n2,PROD+' IN'); lab(n3,PROD+' OUT'); lab(n4,'NCG');
   // tangent lines
   for(const [z,tx] of [[0,'BTL ±0'],[g.TTL,`TTL +${fmt(g.TTL)}`]]){v.line(-Ro-40,z,-Ro-420,z,'THIN');v.text(-Ro-420,z+30,tx,2.2,{});}
   // dims right chain
@@ -651,7 +667,7 @@ function sheetGA(r){
   notes.forEach((l,i)=>sh.text(268,yb-8-i*4.1,l,i?2.1:2.8,{}));
   // ---------- design data + weights
   const dt=Math.ceil((r.s.T+15)/10)*10;
-  const dd=[['JUICE FLOW',`${fmt(p.qj)} t/h  (Bx ${p.bx})`],['JUICE TEMP IN / OUT',`${p.tin} / ${p.tout} °C`],['HEATING VAPOUR',`${fmt(r.s.P,3)} bar a / ${fmt(r.s.T,1)} °C`],
+  const dd=[[PROD+' FLOW',`${fmt(p.qj)} t/h  (Bx ${p.bx})`],[PROD+' TEMP IN / OUT',`${p.tin} / ${p.tout} °C`],['HEATING VAPOUR',`${fmt(r.s.P,3)} bar a / ${fmt(r.s.T,1)} °C`],
    ['VAPOUR CONSUMPTION',`${fmt(r.flow.mv*3.6,2)} t/h`],['HEAT DUTY',`${fmt(r.flow.Q)} kW`],['DESIGN PRESSURE',`${p.pd} bar g${+p.fv?' / FULL VAC.':''}`],['DESIGN TEMP.',`${dt} °C`],
    ['MATERIAL',r.M.name],['CORR. ALLOWANCE',`${p.ca} mm`],['SHELL',`ID ${g.Ds} × t${p.ts}`],['CONES BTM / TOP',`t${p.tc} / t${p.tt}`],['BAFFLES',`${p.nset} SETS t${p.tb}`],
    ['CAPACITY',`${fmt(W.Vtot,2)} m³`],['EMPTY WEIGHT',`${fmt(W.empty)} kg`],['OPERATING WEIGHT',`${fmt(W.oper)} kg`],['HYDROTEST WEIGHT',`${fmt(W.hydro)} kg`],['CODE (REF.)','ASME VIII DIV.1']];
@@ -733,7 +749,7 @@ function sheetDetails(r){
     v.dH(0,120,R,120,120,`R${fmt(R)}`,{h:2.2,noext:true});
     v.leader(R+t/2,0,8,8,'FULL PEN. BUTT WELD\nBACKGOUGE',2);
     v.leader((R+n3.pp.OD/2)/2+20,-g.Hcone/2,10,-6,`BOTTOM CONE PL t${p.tc}`,2);
-    v.leader(n3.pp.OD/2,-g.Hcone-40,10,-8,`N3 ${n3.pp.nps}" JUICE OUTLET\nTO BAROMETRIC LEG / PUMP`,2);
+    v.leader(n3.pp.OD/2,-g.Hcone-40,10,-8,`N3 ${n3.pp.nps}" ${n3.sv}\nTO BAROMETRIC LEG / PUMP`,2);
   });
   // D nozzle reinforcement (zoom, local coords)
   const n2=g.noz[1],pp=n2.pp; const leg=Math.min(t,pp.w,10);
@@ -842,6 +858,9 @@ function buildForm(){
       d.appendChild(row);});
     a.appendChild(d);});
   a.insertAdjacentHTML('beforeend','<p class="hint" style="margin-top:12px">ค่าเริ่มต้นเป็นตัวอย่างจากงาน DCH 02.1.26 HT (1,312 t/h, 92→100 °C, ไอ V03 1.09 bar a) ปรับแก้ได้ทุกช่อง ผลคำนวณและแบบอัปเดตทันที</p>');
+  a.insertAdjacentHTML('beforeend','<p style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" type="button" id="pJuice">ตัวอย่าง: น้ำอ้อย 15 Bx</button><button class="btn" type="button" id="pSyrup">ตัวอย่าง: น้ำเชื่อม 65 Bx 70→75 °C</button></p>');
+  $('#pJuice').onclick=()=>{P={...DEF};fill();onInput();toast('โหลดตัวอย่างน้ำอ้อย')};
+  $('#pSyrup').onclick=()=>{P={...DEF,prod:'syrup',tag:'SYRUP DCH',qj:300,tin:70,tout:75,bx:65,pty:85,vmode:'P',pv:0.45,vji:1.2,vjo:0.7,g1:60,g2:50,dadd:120,hvs:1500,ncg:2};fill();onInput();toast('โหลดตัวอย่างน้ำเชื่อม (ปรับอัตราไหลและความดันไอตามจริง)')};
   fill(); a.addEventListener('input',onInput); a.addEventListener('change',onInput);
 }
 function fill(){Object.keys(DEF).forEach(k=>{const el=$('#i_'+k); if(el) el.value=P[k];})}
